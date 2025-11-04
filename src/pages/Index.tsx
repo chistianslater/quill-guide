@@ -100,6 +100,15 @@ const Index = () => {
             onComplete={() => setShowSettings(false)}
             onOpenAssessment={() => setShowAssessment(true)}
           />
+          {profile && (
+            <InitialAssessment
+              userId={session.user.id}
+              gradeLevel={profile.grade_level}
+              federalState={profile.federal_state}
+              open={showAssessment}
+              onComplete={() => setShowAssessment(false)}
+            />
+          )}
         </div>
       </div>
     );
