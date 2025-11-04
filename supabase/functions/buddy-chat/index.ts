@@ -120,7 +120,7 @@ serve(async (req) => {
       .single();
 
     // ========================================================================
-    // COMPETENCY SELECTION
+    // COMPETENCY SELECTION (Priority & Weakness-Based)
     // ========================================================================
 
     // Fetch a suitable competency to work on
@@ -128,21 +128,29 @@ serve(async (req) => {
     let existingProgress = null;
     
     if (profile?.grade_level) {
-      // First, get existing progress
+      // Priority-based selection: 
+      // 1. High manual priority with struggles
+      // 2. High struggles (AI-detected weaknesses)
+      // 3. High manual priority
+      // 4. Lowest confidence in progress
+      // 5. New mandatory competency
+      
       const { data: progressData } = await supabase
         .from("competency_progress")
         .select("*, competencies(*)")
         .eq("user_id", userId)
         .in("status", ["not_started", "in_progress"])
+        .order("priority", { ascending: false })
+        .order("struggles_count", { ascending: false })
         .order("confidence_level", { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (progressData) {
         existingProgress = progressData;
         targetCompetency = progressData.competencies;
       } else {
-        // If no existing progress, find a new competency
+        // If no existing progress, find a new mandatory competency
         const competencyQuery = supabase
           .from("competencies")
           .select("id, title, description, subject, competency_domain, requirement_level")
@@ -167,10 +175,12 @@ serve(async (req) => {
               user_id: userId,
               competency_id: targetCompetency.id,
               status: "not_started",
-              confidence_level: 0
+              confidence_level: 0,
+              priority: 0,
+              struggles_count: 0
             })
             .select()
-            .single();
+            .maybeSingle();
           
           existingProgress = newProgress;
         }
@@ -239,8 +249,26 @@ Verbinde JEDE Lernaktivität mit den Interessen des Lerners.`;
     }
 
     // ========================================================================
-    // CALL AI
+    // CALL AI WITH WEAKNESS DETECTION
     // ========================================================================
+
+    // Add weakness detection instructions to system prompt
+    const weaknessDetectionPrompt = `
+
+SCHWACHSTELLENERKENNUNG (Intern - nicht erwähnen):
+Achte auf folgende Signale, die auf Schwierigkeiten hindeuten:
+- Unsicherheit: "Ich weiß nicht", "Vielleicht", "Ich bin mir nicht sicher"
+- Fehler im Verständnis: Falsche Annahmen oder Konzeptfehler
+- Frustration: Sehr kurze Antworten, wiederholte Fehler
+- Explizite Aussagen: "Das verstehe ich nicht", "Das ist schwierig"
+
+Wenn du solche Signale erkennst, passe deinen Ansatz an:
+- Vereinfache die Erklärung
+- Nutze andere Beispiele aus den Interessen
+- Teile die Aufgabe in kleinere Schritte
+`;
+
+    const fullSystemPrompt = systemPrompt + weaknessDetectionPrompt;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -251,10 +279,31 @@ Verbinde JEDE Lernaktivität mit den Interessen des Lerners.`;
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: fullSystemPrompt },
           ...messages,
         ],
         stream: true,
+        tools: [{
+          type: "function",
+          function: {
+            name: "detect_weakness",
+            description: "Erkenne Schwachstellen oder Schwierigkeiten beim Lerner",
+            parameters: {
+              type: "object",
+              properties: {
+                has_difficulty: {
+                  type: "boolean",
+                  description: "Hat der Lerner Schwierigkeiten mit dem aktuellen Thema?"
+                },
+                indicators: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Liste der erkannten Schwierigkeits-Indikatoren"
+                }
+              }
+            }
+          }
+        }]
       }),
     });
 
@@ -281,28 +330,73 @@ Verbinde JEDE Lernaktivität mit den Interessen des Lerners.`;
     }
 
     // ========================================================================
-    // UPDATE COMPETENCY PROGRESS (after successful conversation)
+    // ANALYZE MESSAGE FOR WEAKNESSES & UPDATE PROGRESS
     // ========================================================================
     
     // Count user messages in this conversation
     const userMessageCount = messages.filter((m: any) => m.role === "user").length;
+    const lastUserMessage = messages.filter((m: any) => m.role === "user").pop()?.content || "";
+    
+    // Detect weakness indicators in user message
+    const weaknessKeywords = [
+      "weiß nicht", "verstehe nicht", "schwierig", "kompliziert", 
+      "keine ahnung", "vielleicht", "unsicher", "nicht sicher",
+      "zu schwer", "kann ich nicht"
+    ];
+    
+    let hasWeakness = false;
+    const detectedIndicators: string[] = [];
+    
+    weaknessKeywords.forEach(keyword => {
+      if (lastUserMessage.toLowerCase().includes(keyword)) {
+        hasWeakness = true;
+        detectedIndicators.push(keyword);
+      }
+    });
+    
+    // Also detect short responses as potential frustration
+    if (lastUserMessage.length < 10 && userMessageCount > 2) {
+      hasWeakness = true;
+      detectedIndicators.push("very_short_response");
+    }
     
     // If user has engaged sufficiently (3+ messages) and we have a target competency
     if (userMessageCount >= 3 && targetCompetency && existingProgress) {
-      const confidenceIncrease = engagementLevel === "high" ? 25 : 
-                                 engagementLevel === "normal" ? 20 : 15;
+      const updates: any = {
+        last_practiced_at: new Date().toISOString()
+      };
       
-      const newConfidence = Math.min(100, existingProgress.confidence_level + confidenceIncrease);
-      const newStatus = newConfidence >= 80 ? "mastered" : 
-                        newConfidence > 0 ? "in_progress" : "not_started";
+      // Update weakness indicators if detected
+      if (hasWeakness) {
+        const currentIndicators = existingProgress.weakness_indicators || {};
+        const updatedIndicators = {
+          ...currentIndicators,
+          last_detected: new Date().toISOString(),
+          indicators: [...(currentIndicators.indicators || []), ...detectedIndicators].slice(-10)
+        };
+        
+        updates.weakness_indicators = updatedIndicators;
+        updates.struggles_count = (existingProgress.struggles_count || 0) + 1;
+        updates.last_struggle_at = new Date().toISOString();
+        
+        // Lower confidence increase when struggling
+        const confidenceIncrease = 5;
+        updates.confidence_level = Math.max(0, existingProgress.confidence_level + confidenceIncrease);
+        updates.status = "in_progress";
+      } else {
+        // Normal progress when no weakness detected
+        const confidenceIncrease = engagementLevel === "high" ? 25 : 
+                                   engagementLevel === "normal" ? 20 : 15;
+        
+        const newConfidence = Math.min(100, existingProgress.confidence_level + confidenceIncrease);
+        updates.confidence_level = newConfidence;
+        updates.status = newConfidence >= 80 ? "mastered" : 
+                         newConfidence > 0 ? "in_progress" : "not_started";
+      }
       
       await supabase
         .from("competency_progress")
-        .update({
-          confidence_level: newConfidence,
-          status: newStatus,
-          last_practiced_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq("id", existingProgress.id);
     }
 

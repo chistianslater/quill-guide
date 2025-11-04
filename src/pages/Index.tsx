@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@/components/Auth";
 import { Chat } from "@/components/Chat";
 import { ProfileSettings } from "@/components/ProfileSettings";
+import { InitialAssessment } from "@/components/InitialAssessment";
 import { Button } from "@/components/ui/button";
 import { LogOut, Settings } from "lucide-react";
 
@@ -10,7 +11,9 @@ const Index = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAssessment, setShowAssessment] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -22,6 +25,15 @@ const Index = () => {
           .from("user_interests")
           .select("*")
           .eq("user_id", session.user.id);
+        
+        // Fetch profile
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        
+        setProfile(profileData);
         
         if (!interests || interests.length === 0) {
           setNeedsOnboarding(true);
@@ -83,7 +95,11 @@ const Index = () => {
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-          <ProfileSettings userId={session.user.id} onComplete={() => setShowSettings(false)} />
+          <ProfileSettings 
+            userId={session.user.id} 
+            onComplete={() => setShowSettings(false)}
+            onOpenAssessment={() => setShowAssessment(true)}
+          />
         </div>
       </div>
     );
@@ -105,6 +121,16 @@ const Index = () => {
         </Button>
       </div>
       <Chat />
+      
+      {profile && (
+        <InitialAssessment
+          userId={session.user.id}
+          gradeLevel={profile.grade_level}
+          federalState={profile.federal_state}
+          open={showAssessment}
+          onComplete={() => setShowAssessment(false)}
+        />
+      )}
     </div>
   );
 };

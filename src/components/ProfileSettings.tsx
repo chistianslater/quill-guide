@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { X, Plus } from "lucide-react";
+import { X, Plus, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
 
 interface Interest {
   id: string;
@@ -21,9 +22,26 @@ interface Profile {
   federal_state: string | null;
 }
 
+interface CompetencyProgress {
+  id: string;
+  competency_id: string;
+  confidence_level: number;
+  status: string;
+  priority: number;
+  struggles_count: number;
+  last_struggle_at: string | null;
+  competencies: {
+    title: string;
+    subject: string;
+    competency_domain: string;
+    description: string;
+  };
+}
+
 interface ProfileSettingsProps {
   userId: string;
   onComplete?: () => void;
+  onOpenAssessment?: () => void;
 }
 
 const FEDERAL_STATES = [
@@ -47,9 +65,10 @@ const FEDERAL_STATES = [
 
 const GRADE_LEVELS = [5, 6, 7, 8, 9, 10, 11, 12, 13];
 
-export const ProfileSettings = ({ userId, onComplete }: ProfileSettingsProps) => {
+export const ProfileSettings = ({ userId, onComplete, onOpenAssessment }: ProfileSettingsProps) => {
   const [interests, setInterests] = useState<Interest[]>([]);
   const [newInterest, setNewInterest] = useState("");
+  const [competencies, setCompetencies] = useState<CompetencyProgress[]>([]);
   const [profile, setProfile] = useState<Profile>({
     display_name: "",
     grade_level: null,
@@ -61,6 +80,7 @@ export const ProfileSettings = ({ userId, onComplete }: ProfileSettingsProps) =>
   useEffect(() => {
     fetchInterests();
     fetchProfile();
+    fetchCompetencies();
   }, [userId]);
 
   const fetchInterests = async () => {
@@ -78,9 +98,21 @@ export const ProfileSettings = ({ userId, onComplete }: ProfileSettingsProps) =>
       .from("profiles")
       .select("display_name, grade_level, federal_state")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
     
     if (data) setProfile(data);
+  };
+
+  const fetchCompetencies = async () => {
+    const { data } = await supabase
+      .from("competency_progress")
+      .select("*, competencies(*)")
+      .eq("user_id", userId)
+      .in("status", ["not_started", "in_progress"])
+      .order("priority", { ascending: false })
+      .order("struggles_count", { ascending: false });
+    
+    if (data) setCompetencies(data as any);
   };
 
   const addInterest = async () => {
@@ -168,6 +200,30 @@ export const ProfileSettings = ({ userId, onComplete }: ProfileSettingsProps) =>
     }
   };
 
+  const updatePriority = async (competencyId: string, newPriority: number) => {
+    try {
+      const { error } = await supabase
+        .from("competency_progress")
+        .update({ priority: newPriority })
+        .eq("id", competencyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Priorität aktualisiert",
+        description: "Die Priorität wurde erfolgreich geändert.",
+      });
+
+      fetchCompetencies();
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -178,9 +234,10 @@ export const ProfileSettings = ({ userId, onComplete }: ProfileSettingsProps) =>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="interests" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="interests">Interessen</TabsTrigger>
             <TabsTrigger value="profile">Profil</TabsTrigger>
+            <TabsTrigger value="competencies">Schwerpunkte</TabsTrigger>
           </TabsList>
 
           <TabsContent value="interests" className="space-y-4 mt-4">
@@ -279,6 +336,86 @@ export const ProfileSettings = ({ userId, onComplete }: ProfileSettingsProps) =>
             >
               Profil speichern
             </Button>
+          </TabsContent>
+
+          <TabsContent value="competencies" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Lernbereiche & Schwerpunkte</Label>
+              <p className="text-sm text-muted-foreground">
+                Markiere Bereiche, in denen du dich verbessern möchtest. Der Buddy wird sich darauf fokussieren.
+              </p>
+            </div>
+
+            {onOpenAssessment && (
+              <Button
+                variant="outline"
+                onClick={onOpenAssessment}
+                className="w-full"
+              >
+                Selbsteinschätzung durchführen
+              </Button>
+            )}
+
+            <div className="space-y-3">
+              {competencies.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Noch keine Kompetenzen. Beginne ein Gespräch, um loszulegen!
+                </p>
+              ) : (
+                competencies.map((comp) => (
+                  <div
+                    key={comp.id}
+                    className="p-4 rounded-lg bg-secondary space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-sm font-semibold">{comp.competencies.title}</h4>
+                          {comp.struggles_count > 2 && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Schwachstelle
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {comp.competencies.subject} · {comp.competencies.competency_domain}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Fortschritt: {comp.confidence_level}%
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => updatePriority(comp.id, comp.priority + 1)}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => updatePriority(comp.id, Math.max(0, comp.priority - 1))}
+                          disabled={comp.priority === 0}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {comp.priority > 0 && (
+                      <Badge variant="default" className="text-xs">
+                        Priorität: {comp.priority}
+                      </Badge>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>
