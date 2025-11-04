@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@/components/Auth";
 import { Chat } from "@/components/Chat";
-import { InterestsManager } from "@/components/InterestsManager";
+import { ProfileSettings } from "@/components/ProfileSettings";
 import { Button } from "@/components/ui/button";
-import { LogOut, Heart } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 
 const Index = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showInterests, setShowInterests] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
@@ -62,26 +62,28 @@ const Index = () => {
   // Onboarding for new users
   if (needsOnboarding) {
     return (
-      <InterestsManager 
-        userId={session.user.id} 
-        onComplete={() => setNeedsOnboarding(false)}
-      />
+      <div className="min-h-screen bg-background p-4 flex items-center justify-center">
+        <ProfileSettings 
+          userId={session.user.id} 
+          onComplete={() => setNeedsOnboarding(false)}
+        />
+      </div>
     );
   }
 
-  if (showInterests) {
+  if (showSettings) {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-4xl mx-auto space-y-4">
           <div className="flex justify-between items-center">
-            <Button variant="ghost" onClick={() => setShowInterests(false)}>
+            <Button variant="ghost" onClick={() => setShowSettings(false)}>
               ← Zurück zum Chat
             </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-          <InterestsManager userId={session.user.id} onComplete={() => setShowInterests(false)} />
+          <ProfileSettings userId={session.user.id} onComplete={() => setShowSettings(false)} />
         </div>
       </div>
     );
@@ -93,10 +95,10 @@ const Index = () => {
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => setShowInterests(true)}
+          onClick={() => setShowSettings(true)}
         >
-          <Heart className="h-4 w-4 mr-2" />
-          Interessen
+          <Settings className="h-4 w-4 mr-2" />
+          Einstellungen
         </Button>
         <Button variant="ghost" size="icon" onClick={handleLogout}>
           <LogOut className="h-4 w-4" />
