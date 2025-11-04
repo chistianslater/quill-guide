@@ -18,6 +18,7 @@ export const Chat = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [lastBuddyMessageTime, setLastBuddyMessageTime] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -35,6 +36,13 @@ export const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Auto-focus input when bot finishes responding
+  useEffect(() => {
+    if (!isLoading && messages.length > 0) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading, messages.length]);
 
   const sendMessage = async () => {
     if (!input.trim() || !userId) return;
@@ -232,6 +240,7 @@ export const Chat = () => {
       <div className="border-t border-border bg-card p-4">
         <div className="max-w-4xl mx-auto flex gap-3">
           <Textarea
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
