@@ -13,7 +13,12 @@ interface Interest {
   intensity: number;
 }
 
-export const InterestsManager = ({ userId }: { userId: string }) => {
+interface InterestsManagerProps {
+  userId: string;
+  onComplete?: () => void;
+}
+
+export const InterestsManager = ({ userId, onComplete }: InterestsManagerProps) => {
   const [interests, setInterests] = useState<Interest[]>([]);
   const [newInterest, setNewInterest] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,6 +58,11 @@ export const InterestsManager = ({ userId }: { userId: string }) => {
       
       setNewInterest("");
       fetchInterests();
+      
+      // Call onComplete if provided (for onboarding flow)
+      if (onComplete) {
+        onComplete();
+      }
     } catch (error: any) {
       toast({
         title: "Fehler",

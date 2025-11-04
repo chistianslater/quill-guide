@@ -8,6 +8,7 @@ import { Send } from "lucide-react";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  timestamp?: number;
 }
 
 export const Chat = () => {
@@ -15,6 +16,7 @@ export const Chat = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [lastBuddyMessageTime, setLastBuddyMessageTime] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -37,7 +39,18 @@ export const Chat = () => {
   const sendMessage = async () => {
     if (!input.trim() || !userId) return;
 
-    const userMessage: Message = { role: "user", content: input.trim() };
+    const userMessage: Message = { 
+      role: "user", 
+      content: input.trim(),
+      timestamp: Date.now()
+    };
+    
+    // Calculate engagement metrics
+    const responseTimeMs = lastBuddyMessageTime 
+      ? Date.now() - lastBuddyMessageTime 
+      : null;
+    const messageLength = input.trim().length;
+    
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -56,6 +69,8 @@ export const Chat = () => {
           body: JSON.stringify({
             messages: [...messages, userMessage],
             userId,
+            responseTimeMs,
+            messageLength,
           }),
         }
       );
@@ -88,7 +103,11 @@ export const Chat = () => {
               i === prev.length - 1 ? { ...m, content: assistantContent } : m
             );
           }
-          return [...prev, { role: "assistant", content: assistantContent }];
+          return [...prev, { 
+            role: "assistant", 
+            content: assistantContent,
+            timestamp: Date.now()
+          }];
         });
       };
 
@@ -136,6 +155,8 @@ export const Chat = () => {
         }
       }
 
+      // Track when buddy message was sent
+      setLastBuddyMessageTime(Date.now());
       setIsLoading(false);
     } catch (error) {
       console.error("Chat error:", error);

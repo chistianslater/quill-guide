@@ -10,10 +10,24 @@ const Index = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showInterests, setShowInterests] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
+      
+      // Check if user needs onboarding
+      if (session) {
+        const { data: interests } = await supabase
+          .from("user_interests")
+          .select("*")
+          .eq("user_id", session.user.id);
+        
+        if (!interests || interests.length === 0) {
+          setNeedsOnboarding(true);
+        }
+      }
+      
       setLoading(false);
     });
 
@@ -45,6 +59,16 @@ const Index = () => {
     return <Auth />;
   }
 
+  // Onboarding for new users
+  if (needsOnboarding) {
+    return (
+      <InterestsManager 
+        userId={session.user.id} 
+        onComplete={() => setNeedsOnboarding(false)}
+      />
+    );
+  }
+
   if (showInterests) {
     return (
       <div className="min-h-screen bg-background p-4">
@@ -57,7 +81,7 @@ const Index = () => {
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-          <InterestsManager userId={session.user.id} />
+          <InterestsManager userId={session.user.id} onComplete={() => setShowInterests(false)} />
         </div>
       </div>
     );
