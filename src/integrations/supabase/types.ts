@@ -60,10 +60,14 @@ export type Database = {
           created_at: string
           id: string
           last_practiced_at: string | null
+          last_struggle_at: string | null
           metadata: Json | null
+          priority: number | null
           status: string
+          struggles_count: number | null
           updated_at: string
           user_id: string
+          weakness_indicators: Json | null
         }
         Insert: {
           competency_id: string
@@ -71,10 +75,14 @@ export type Database = {
           created_at?: string
           id?: string
           last_practiced_at?: string | null
+          last_struggle_at?: string | null
           metadata?: Json | null
+          priority?: number | null
           status?: string
+          struggles_count?: number | null
           updated_at?: string
           user_id: string
+          weakness_indicators?: Json | null
         }
         Update: {
           competency_id?: string
@@ -82,10 +90,14 @@ export type Database = {
           created_at?: string
           id?: string
           last_practiced_at?: string | null
+          last_struggle_at?: string | null
           metadata?: Json | null
+          priority?: number | null
           status?: string
+          struggles_count?: number | null
           updated_at?: string
           user_id?: string
+          weakness_indicators?: Json | null
         }
         Relationships: [
           {
