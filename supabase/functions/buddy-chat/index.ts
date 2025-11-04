@@ -42,9 +42,66 @@ serve(async (req) => {
     // Fetch user profile
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, grade_level")
+      .select("display_name, grade_level, federal_state")
       .eq("id", userId)
       .single();
+
+    // Fetch a suitable competency to work on
+    let targetCompetency = null;
+    if (profile?.grade_level) {
+      // First, get existing progress
+      const { data: progressData } = await supabase
+        .from("competency_progress")
+        .select("competency_id, confidence_level, status")
+        .eq("user_id", userId)
+        .in("status", ["not_started", "in_progress"])
+        .order("confidence_level", { ascending: true })
+        .limit(1)
+        .single();
+
+      let competencyId = progressData?.competency_id;
+
+      // If no existing progress, find a new competency
+      if (!competencyId) {
+        const competencyQuery = supabase
+          .from("competencies")
+          .select("id, title, description, subject, competency_domain, requirement_level")
+          .eq("grade_level", profile.grade_level)
+          .eq("is_mandatory", true);
+
+        if (profile.federal_state) {
+          competencyQuery.or(`federal_state.eq.${profile.federal_state},federal_state.is.null`);
+        }
+
+        const { data: competencies } = await competencyQuery.limit(10);
+
+        if (competencies && competencies.length > 0) {
+          // Pick a random competency from the available ones
+          const randomIndex = Math.floor(Math.random() * competencies.length);
+          targetCompetency = competencies[randomIndex];
+          competencyId = targetCompetency.id;
+
+          // Create initial progress entry
+          await supabase
+            .from("competency_progress")
+            .insert({
+              user_id: userId,
+              competency_id: competencyId,
+              status: "not_started",
+              confidence_level: 0
+            });
+        }
+      } else {
+        // Fetch the competency details
+        const { data: comp } = await supabase
+          .from("competencies")
+          .select("id, title, description, subject, competency_domain, requirement_level")
+          .eq("id", competencyId)
+          .single();
+        
+        targetCompetency = comp;
+      }
+    }
 
     // Build system prompt based on master prompt
     const systemPrompt = `Du bist ein freundlicher Lernbegleiter (Buddy), kein Lehrer oder Tutor.
@@ -78,6 +135,22 @@ INTERESSEN DES LERNERS:
 ${interests && interests.length > 0 
   ? interests.map(i => `- ${i.interest} (Intensität: ${i.intensity}/10)`).join("\n")
   : "Noch keine Interessen bekannt. Frage neugierig danach!"}
+
+${targetCompetency ? `
+DEINE AKTUELLE AUFGABE (UNSICHTBAR FÜR DEN LERNER):
+Du arbeitest an dieser Kompetenz:
+- Fach: ${targetCompetency.subject}
+- Bereich: ${targetCompetency.competency_domain}
+- Kompetenz: ${targetCompetency.title}
+- Beschreibung: ${targetCompetency.description}
+
+WICHTIG:
+- Erwähne NIEMALS direkt "Kompetenz", "Lehrplan" oder "Lernziel"
+- Baue eine BRÜCKE zwischen den Interessen des Lerners und dieser Kompetenz
+- Stelle Fragen, die zur Entdeckung führen (Scaffolding)
+- Feiere den Denkprozess, nicht die richtige Antwort
+- Wenn der Lerner die Kompetenz verstanden hat, verankere das Konzept in einfacher Sprache
+` : "Beginne damit, die Interessen des Lerners kennenzulernen. Frage neugierig nach!"}
 
 Verbinde JEDE Lernaktivität mit den Interessen des Lerners.
 Bei Frustration: "Lass uns eine Pause machen oder über etwas anderes reden."`;
