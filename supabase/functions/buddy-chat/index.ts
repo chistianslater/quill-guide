@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, userId } = await req.json();
+    const { messages, userId, responseTimeMs, messageLength } = await req.json();
     
     if (!userId) {
       return new Response(
@@ -31,6 +31,79 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // ========================================================================
+    // ENGAGEMENT MONITORING
+    // ========================================================================
+    
+    // Get or create current learning session
+    let currentSession = null;
+    const { data: sessions } = await supabase
+      .from("learning_sessions")
+      .select("*")
+      .eq("user_id", userId)
+      .is("ended_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1);
+    
+    if (sessions && sessions.length > 0) {
+      currentSession = sessions[0];
+    } else {
+      // Create new session
+      const { data: newSession } = await supabase
+        .from("learning_sessions")
+        .insert({
+          user_id: userId,
+          metadata: { metrics: { response_times: [], message_lengths: [] } }
+        })
+        .select()
+        .single();
+      currentSession = newSession;
+    }
+
+    // Update engagement metrics
+    let engagementLevel = "normal";
+    if (currentSession && responseTimeMs && messageLength) {
+      const metrics = currentSession.metadata?.metrics || { response_times: [], message_lengths: [] };
+      
+      // Add new metrics
+      metrics.response_times = [...(metrics.response_times || []), responseTimeMs];
+      metrics.message_lengths = [...(metrics.message_lengths || []), messageLength];
+      
+      // Keep only last 10 measurements for baseline
+      if (metrics.response_times.length > 10) {
+        metrics.response_times = metrics.response_times.slice(-10);
+      }
+      if (metrics.message_lengths.length > 10) {
+        metrics.message_lengths = metrics.message_lengths.slice(-10);
+      }
+      
+      // Calculate baseline (average of last measurements)
+      const avgResponseTime = metrics.response_times.reduce((a: number, b: number) => a + b, 0) / metrics.response_times.length;
+      const avgMessageLength = metrics.message_lengths.reduce((a: number, b: number) => a + b, 0) / metrics.message_lengths.length;
+      
+      // Detect frustration or low engagement
+      if (responseTimeMs > avgResponseTime * 2.5 || messageLength < avgMessageLength * 0.3) {
+        engagementLevel = "frustrated";
+      } else if (responseTimeMs > avgResponseTime * 1.5 || messageLength < avgMessageLength * 0.6) {
+        engagementLevel = "low";
+      } else if (responseTimeMs < avgResponseTime * 0.8 && messageLength > avgMessageLength * 0.9) {
+        engagementLevel = "high";
+      }
+      
+      // Update session with new metrics
+      await supabase
+        .from("learning_sessions")
+        .update({
+          engagement_level: engagementLevel,
+          metadata: { ...currentSession.metadata, metrics }
+        })
+        .eq("id", currentSession.id);
+    }
+
+    // ========================================================================
+    // FETCH USER DATA
+    // ========================================================================
+
     // Fetch user interests to personalize conversation
     const { data: interests } = await supabase
       .from("user_interests")
@@ -46,23 +119,30 @@ serve(async (req) => {
       .eq("id", userId)
       .single();
 
+    // ========================================================================
+    // COMPETENCY SELECTION
+    // ========================================================================
+
     // Fetch a suitable competency to work on
     let targetCompetency = null;
+    let existingProgress = null;
+    
     if (profile?.grade_level) {
       // First, get existing progress
       const { data: progressData } = await supabase
         .from("competency_progress")
-        .select("competency_id, confidence_level, status")
+        .select("*, competencies(*)")
         .eq("user_id", userId)
         .in("status", ["not_started", "in_progress"])
         .order("confidence_level", { ascending: true })
         .limit(1)
         .single();
 
-      let competencyId = progressData?.competency_id;
-
-      // If no existing progress, find a new competency
-      if (!competencyId) {
+      if (progressData) {
+        existingProgress = progressData;
+        targetCompetency = progressData.competencies;
+      } else {
+        // If no existing progress, find a new competency
         const competencyQuery = supabase
           .from("competencies")
           .select("id, title, description, subject, competency_domain, requirement_level")
@@ -79,32 +159,29 @@ serve(async (req) => {
           // Pick a random competency from the available ones
           const randomIndex = Math.floor(Math.random() * competencies.length);
           targetCompetency = competencies[randomIndex];
-          competencyId = targetCompetency.id;
 
           // Create initial progress entry
-          await supabase
+          const { data: newProgress } = await supabase
             .from("competency_progress")
             .insert({
               user_id: userId,
-              competency_id: competencyId,
+              competency_id: targetCompetency.id,
               status: "not_started",
               confidence_level: 0
-            });
+            })
+            .select()
+            .single();
+          
+          existingProgress = newProgress;
         }
-      } else {
-        // Fetch the competency details
-        const { data: comp } = await supabase
-          .from("competencies")
-          .select("id, title, description, subject, competency_domain, requirement_level")
-          .eq("id", competencyId)
-          .single();
-        
-        targetCompetency = comp;
       }
     }
 
-    // Build system prompt based on master prompt
-    const systemPrompt = `Du bist ein freundlicher Lernbegleiter (Buddy), kein Lehrer oder Tutor.
+    // ========================================================================
+    // BUILD SYSTEM PROMPT
+    // ========================================================================
+
+    let systemPrompt = `Du bist ein freundlicher Lernbegleiter (Buddy), kein Lehrer oder Tutor.
 
 KERNIDENTITÄT:
 - Du bist geduldig, ruhig, neugierig und ermutigend
@@ -152,10 +229,19 @@ WICHTIG:
 - Wenn der Lerner die Kompetenz verstanden hat, verankere das Konzept in einfacher Sprache
 ` : "Beginne damit, die Interessen des Lerners kennenzulernen. Frage neugierig nach!"}
 
-Verbinde JEDE Lernaktivität mit den Interessen des Lerners.
-Bei Frustration: "Lass uns eine Pause machen oder über etwas anderes reden."`;
+Verbinde JEDE Lernaktivität mit den Interessen des Lerners.`;
 
-    // Call Lovable AI
+    // Add engagement-specific instructions
+    if (engagementLevel === "frustrated") {
+      systemPrompt += "\n\nWICHTIG: Der Lerner wirkt frustriert oder müde. Biete sofort eine Pause an oder wechsle das Thema.";
+    } else if (engagementLevel === "low") {
+      systemPrompt += "\n\nHINWEIS: Das Engagement ist etwas niedrig. Mache die Aufgabe spielerischer oder stelle eine einfachere Frage.";
+    }
+
+    // ========================================================================
+    // CALL AI
+    // ========================================================================
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -192,6 +278,32 @@ Bei Frustration: "Lass uns eine Pause machen oder über etwas anderes reden."`;
         JSON.stringify({ error: "KI-Dienst nicht verfügbar" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ========================================================================
+    // UPDATE COMPETENCY PROGRESS (after successful conversation)
+    // ========================================================================
+    
+    // Count user messages in this conversation
+    const userMessageCount = messages.filter((m: any) => m.role === "user").length;
+    
+    // If user has engaged sufficiently (3+ messages) and we have a target competency
+    if (userMessageCount >= 3 && targetCompetency && existingProgress) {
+      const confidenceIncrease = engagementLevel === "high" ? 25 : 
+                                 engagementLevel === "normal" ? 20 : 15;
+      
+      const newConfidence = Math.min(100, existingProgress.confidence_level + confidenceIncrease);
+      const newStatus = newConfidence >= 80 ? "mastered" : 
+                        newConfidence > 0 ? "in_progress" : "not_started";
+      
+      await supabase
+        .from("competency_progress")
+        .update({
+          confidence_level: newConfidence,
+          status: newStatus,
+          last_practiced_at: new Date().toISOString()
+        })
+        .eq("id", existingProgress.id);
     }
 
     // Stream the response back
