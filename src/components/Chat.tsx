@@ -265,36 +265,44 @@ export const Chat = () => {
           </div>
         )}
 
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2 items-start`}
-          >
+        {messages.map((msg, idx) => {
+          const isLastMessage = idx === messages.length - 1;
+          const showTypingCursor = msg.role === "assistant" && isLastMessage && isLoading;
+          
+          return (
             <div
-              className={`max-w-2xl rounded-xl px-5 py-4 ${
-                msg.role === "user"
-                  ? "bg-[hsl(var(--user-message))] text-foreground"
-                  : "bg-[hsl(var(--buddy-message))] text-foreground"
-              }`}
+              key={idx}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2 items-start animate-fade-in`}
             >
-              <p className="text-base leading-relaxed whitespace-pre-wrap">
-                {msg.content}
-              </p>
-            </div>
-            {msg.role === "assistant" && ttsEnabled && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => playTTS(msg.content)}
-                title="Vorlesen"
-                disabled={isSpeaking}
+              <div
+                className={`max-w-2xl rounded-xl px-5 py-4 ${
+                  msg.role === "user"
+                    ? "bg-[hsl(var(--user-message))] text-foreground"
+                    : "bg-[hsl(var(--buddy-message))] text-foreground"
+                }`}
               >
-                <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse' : ''}`} />
-              </Button>
-            )}
-          </div>
-        ))}
+                <p className="text-base leading-relaxed whitespace-pre-wrap">
+                  {msg.content}
+                  {showTypingCursor && (
+                    <span className="inline-block w-0.5 h-5 ml-1 bg-foreground animate-pulse" />
+                  )}
+                </p>
+              </div>
+              {msg.role === "assistant" && ttsEnabled && !isLoading && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => playTTS(msg.content)}
+                  title="Vorlesen"
+                  disabled={isSpeaking}
+                >
+                  <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse' : ''}`} />
+                </Button>
+              )}
+            </div>
+          );
+        })}
 
         {isLoading && (
           <div className="flex justify-start">
