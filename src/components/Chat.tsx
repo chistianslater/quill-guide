@@ -4,7 +4,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Volume2 } from "lucide-react";
-import { speakText, stopSpeech } from "@/utils/textToSpeech";
 
 interface Message {
   role: "user" | "assistant";
@@ -19,8 +18,10 @@ export const Chat = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [lastBuddyMessageTime, setLastBuddyMessageTime] = useState<number | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,6 +60,52 @@ export const Chat = () => {
       inputRef.current?.focus();
     }
   }, [isLoading, messages.length]);
+
+  // Auto-play TTS for new assistant messages
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === "assistant" && ttsEnabled && !isLoading) {
+      playTTS(lastMessage.content);
+    }
+  }, [messages, ttsEnabled, isLoading]);
+
+  const playTTS = async (text: string) => {
+    if (isSpeaking || !text.trim()) return;
+
+    setIsSpeaking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text }
+      });
+
+      if (error) throw error;
+
+      // Create audio from base64
+      const audioBlob = new Blob(
+        [Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))],
+        { type: 'audio/mpeg' }
+      );
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Play audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audioRef.current.onerror = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audioRef.current.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setIsSpeaking(false);
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || !userId) return;
@@ -239,10 +286,11 @@ export const Chat = () => {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 shrink-0"
-                onClick={() => speakText(msg.content)}
+                onClick={() => playTTS(msg.content)}
                 title="Vorlesen"
+                disabled={isSpeaking}
               >
-                <Volume2 className="h-4 w-4" />
+                <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse' : ''}`} />
               </Button>
             )}
           </div>
