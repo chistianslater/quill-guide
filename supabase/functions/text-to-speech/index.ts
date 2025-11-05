@@ -35,7 +35,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'tts-1-hd',
         input: text,
-        voice: 'nova', // German-friendly voice
+        voice: 'onyx', // Best voice for German
         response_format: 'mp3',
       }),
     });
