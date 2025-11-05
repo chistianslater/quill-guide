@@ -9,6 +9,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp?: number;
+  displayedContent?: string; // For typing effect
 }
 
 export const Chat = () => {
@@ -19,9 +20,11 @@ export const Chat = () => {
   const [lastBuddyMessageTime, setLastBuddyMessageTime] = useState<number | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -61,13 +64,56 @@ export const Chat = () => {
     }
   }, [isLoading, messages.length]);
 
+  // Typing effect for assistant messages
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    const lastIndex = messages.length - 1;
+    
+    if (lastMessage && lastMessage.role === "assistant" && !isLoading && typingMessageIndex !== lastIndex) {
+      setTypingMessageIndex(lastIndex);
+      
+      const words = lastMessage.content.split(' ');
+      let currentWordIndex = 0;
+      
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+      
+      typingIntervalRef.current = setInterval(() => {
+        currentWordIndex++;
+        
+        setMessages(prev => prev.map((msg, idx) => {
+          if (idx === lastIndex) {
+            const displayedWords = words.slice(0, currentWordIndex).join(' ');
+            return { ...msg, displayedContent: displayedWords + (currentWordIndex < words.length ? ' ' : '') };
+          }
+          return msg;
+        }));
+        
+        if (currentWordIndex >= words.length) {
+          if (typingIntervalRef.current) {
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+          }
+          setTypingMessageIndex(null);
+        }
+      }, 80); // 80ms per word
+    }
+    
+    return () => {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, [messages, isLoading, typingMessageIndex]);
+
   // Auto-play TTS for new assistant messages
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.role === "assistant" && ttsEnabled && !isLoading) {
+    if (lastMessage && lastMessage.role === "assistant" && ttsEnabled && !isLoading && typingMessageIndex === null) {
       playTTS(lastMessage.content);
     }
-  }, [messages, ttsEnabled, isLoading]);
+  }, [messages, ttsEnabled, isLoading, typingMessageIndex]);
 
   const playTTS = async (text: string) => {
     if (isSpeaking || !text.trim()) return;
@@ -267,7 +313,8 @@ export const Chat = () => {
 
         {messages.map((msg, idx) => {
           const isLastMessage = idx === messages.length - 1;
-          const showTypingCursor = msg.role === "assistant" && isLastMessage && isLoading;
+          const isTyping = typingMessageIndex === idx;
+          const displayContent = msg.displayedContent || msg.content;
           
           return (
             <div
@@ -282,13 +329,13 @@ export const Chat = () => {
                 }`}
               >
                 <p className="text-base leading-relaxed whitespace-pre-wrap">
-                  {msg.content}
-                  {showTypingCursor && (
+                  {displayContent}
+                  {isTyping && (
                     <span className="inline-block w-0.5 h-5 ml-1 bg-foreground animate-pulse" />
                   )}
                 </p>
               </div>
-              {msg.role === "assistant" && ttsEnabled && !isLoading && (
+              {msg.role === "assistant" && ttsEnabled && !isTyping && (
                 <Button
                   variant="ghost"
                   size="icon"
