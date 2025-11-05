@@ -205,6 +205,7 @@ export type Database = {
           id: string
           preferred_learning_times: string[] | null
           role: string
+          tts_enabled: boolean | null
           updated_at: string
         }
         Insert: {
@@ -215,6 +216,7 @@ export type Database = {
           id: string
           preferred_learning_times?: string[] | null
           role: string
+          tts_enabled?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -225,6 +227,7 @@ export type Database = {
           id?: string
           preferred_learning_times?: string[] | null
           role?: string
+          tts_enabled?: boolean | null
           updated_at?: string
         }
         Relationships: []

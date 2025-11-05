@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send } from "lucide-react";
+import { Send, Volume2 } from "lucide-react";
+import { speakText, stopSpeech } from "@/utils/textToSpeech";
 
 interface Message {
   role: "user" | "assistant";
@@ -17,6 +18,7 @@ export const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [lastBuddyMessageTime, setLastBuddyMessageTime] = useState<number | null>(null);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
@@ -24,7 +26,21 @@ export const Chat = () => {
   useEffect(() => {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
-      setUserId(data.user?.id || null);
+      const uid = data.user?.id || null;
+      setUserId(uid);
+
+      // Fetch TTS setting
+      if (uid) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tts_enabled')
+          .eq('id', uid)
+          .single();
+        
+        if (profile) {
+          setTtsEnabled(profile.tts_enabled || false);
+        }
+      }
     };
     getUser();
   }, []);
@@ -205,7 +221,7 @@ export const Chat = () => {
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2 items-start`}
           >
             <div
               className={`max-w-2xl rounded-xl px-5 py-4 ${
@@ -218,6 +234,17 @@ export const Chat = () => {
                 {msg.content}
               </p>
             </div>
+            {msg.role === "assistant" && ttsEnabled && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => speakText(msg.content)}
+                title="Vorlesen"
+              >
+                <Volume2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         ))}
 

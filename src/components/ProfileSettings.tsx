@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { X, Plus, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
 
@@ -20,6 +21,7 @@ interface Profile {
   display_name: string;
   grade_level: number | null;
   federal_state: string | null;
+  tts_enabled: boolean | null;
 }
 
 interface CompetencyProgress {
@@ -73,6 +75,7 @@ export const ProfileSettings = ({ userId, onComplete, onOpenAssessment }: Profil
     display_name: "",
     grade_level: null,
     federal_state: null,
+    tts_enabled: null,
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -96,7 +99,7 @@ export const ProfileSettings = ({ userId, onComplete, onOpenAssessment }: Profil
   const fetchProfile = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("display_name, grade_level, federal_state")
+      .select("display_name, grade_level, federal_state, tts_enabled")
       .eq("id", userId)
       .maybeSingle();
     
@@ -234,10 +237,11 @@ export const ProfileSettings = ({ userId, onComplete, onOpenAssessment }: Profil
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="interests" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="interests">Interessen</TabsTrigger>
             <TabsTrigger value="profile">Profil</TabsTrigger>
             <TabsTrigger value="competencies">Schwerpunkte</TabsTrigger>
+            <TabsTrigger value="accessibility">Barrierefreiheit</TabsTrigger>
           </TabsList>
 
           <TabsContent value="interests" className="space-y-4 mt-4">
@@ -415,6 +419,43 @@ export const ProfileSettings = ({ userId, onComplete, onOpenAssessment }: Profil
                   </div>
                 ))
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="accessibility" className="space-y-4 mt-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="tts-toggle">Text-to-Speech</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Bot liest Nachrichten automatisch vor
+                  </p>
+                </div>
+                <Switch
+                  id="tts-toggle"
+                  checked={profile?.tts_enabled || false}
+                  onCheckedChange={async (checked) => {
+                    const { error } = await supabase
+                      .from("profiles")
+                      .update({ tts_enabled: checked })
+                      .eq("id", userId);
+
+                    if (error) {
+                      toast({
+                        title: "Fehler",
+                        description: "Konnte Einstellung nicht speichern",
+                        variant: "destructive",
+                      });
+                    } else {
+                      setProfile((prev) => prev ? { ...prev, tts_enabled: checked } : prev);
+                      toast({
+                        title: "Gespeichert",
+                        description: "Text-to-Speech wurde " + (checked ? "aktiviert" : "deaktiviert"),
+                      });
+                    }
+                  }}
+                />
+              </div>
             </div>
           </TabsContent>
         </Tabs>
