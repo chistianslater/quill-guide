@@ -1,5 +1,8 @@
 import { motion } from "framer-motion";
-import { Sparkles, Smile, Briefcase, Heart } from "lucide-react";
+import encouragingAvatar from "@/assets/buddy-encouraging.png";
+import funnyAvatar from "@/assets/buddy-funny.png";
+import professionalAvatar from "@/assets/buddy-professional.png";
+import friendlyAvatar from "@/assets/buddy-friendly.png";
 
 interface BuddyAvatarProps {
   personality: "encouraging" | "funny" | "professional" | "friendly";
@@ -16,8 +19,7 @@ export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyA
 
   const personalities = {
     encouraging: {
-      gradient: "from-orange-400 via-pink-500 to-red-500",
-      icon: Heart,
+      avatar: encouragingAvatar,
       animation: {
         scale: [1, 1.1, 1],
         rotate: [0, -5, 5, -5, 0],
@@ -29,8 +31,7 @@ export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyA
       }
     },
     funny: {
-      gradient: "from-yellow-400 via-orange-400 to-pink-500",
-      icon: Smile,
+      avatar: funnyAvatar,
       animation: {
         rotate: [0, -15, 15, -15, 15, 0],
         scale: [1, 1.2, 0.9, 1.1, 1],
@@ -42,8 +43,7 @@ export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyA
       }
     },
     professional: {
-      gradient: "from-blue-500 via-indigo-600 to-purple-600",
-      icon: Briefcase,
+      avatar: professionalAvatar,
       animation: {
         y: [0, -3, 0],
       },
@@ -53,8 +53,7 @@ export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyA
       }
     },
     friendly: {
-      gradient: "from-green-400 via-teal-500 to-blue-500",
-      icon: Sparkles,
+      avatar: friendlyAvatar,
       animation: {
         scale: [1, 1.05, 1],
         rotate: [0, 2, -2, 0],
@@ -67,38 +66,23 @@ export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyA
   };
 
   const config = personalities[personality];
-  const IconComponent = config.icon;
 
   return (
     <motion.div
-      className={`${sizeClasses[size]} rounded-full bg-gradient-to-br ${config.gradient} flex items-center justify-center shadow-lg relative overflow-hidden`}
+      className={`${sizeClasses[size]} rounded-full shadow-lg relative overflow-hidden`}
       animate={animate ? config.animation : {}}
       transition={config.transition}
     >
-      {/* Sparkle effect */}
-      <motion.div
-        className="absolute inset-0 bg-white/20"
-        animate={{
-          scale: [1, 1.5, 1],
-          opacity: [0.3, 0, 0.3],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          repeatDelay: 1
-        }}
-      />
-      
-      {/* Icon */}
-      <IconComponent 
-        className={`text-white ${size === 'sm' ? 'w-5 h-5' : size === 'md' ? 'w-8 h-8' : 'w-12 h-12'} relative z-10`}
-        strokeWidth={2.5}
+      <img 
+        src={config.avatar} 
+        alt={`${personality} buddy avatar`}
+        className="w-full h-full object-cover"
       />
       
       {/* Pulse ring */}
       {animate && (
         <motion.div
-          className={`absolute inset-0 rounded-full border-2 border-white/40`}
+          className={`absolute inset-0 rounded-full border-2 border-primary/40`}
           animate={{
             scale: [1, 1.3, 1],
             opacity: [0.5, 0, 0.5],
