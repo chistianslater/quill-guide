@@ -107,8 +107,51 @@ serve(async (req) => {
                       },
                       data: {
                         type: 'object',
-                        description: 'Die Daten für das interaktive Element. Für type=table: {rows: string[], columns: string[], cells: array von Zeilen mit {row, col, value?, isInput, correctAnswer?}}. Für type=choices: {question: string, options: [{text, isCorrect}]}',
-                        additionalProperties: true
+                        description: 'Die Daten für das interaktive Element',
+                        properties: {
+                          rows: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            description: 'Zeilen-Labels für Tabellen'
+                          },
+                          columns: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            description: 'Spalten-Labels für Tabellen'
+                          },
+                          cells: {
+                            type: 'array',
+                            description: '2D Array der Tabellenzellen',
+                            items: {
+                              type: 'array',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  row: { type: 'number' },
+                                  col: { type: 'number' },
+                                  value: { type: 'string' },
+                                  isInput: { type: 'boolean' },
+                                  correctAnswer: { type: 'string' }
+                                }
+                              }
+                            }
+                          },
+                          question: {
+                            type: 'string',
+                            description: 'Frage für Multiple-Choice'
+                          },
+                          options: {
+                            type: 'array',
+                            description: 'Optionen für Multiple-Choice',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                text: { type: 'string' },
+                                isCorrect: { type: 'boolean' }
+                              }
+                            }
+                          }
+                        }
                       }
                     },
                     required: ['type', 'data']
