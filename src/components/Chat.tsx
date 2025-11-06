@@ -24,6 +24,7 @@ export const Chat = () => {
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | undefined>(undefined);
+  const [buddyName, setBuddyName] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -54,6 +55,9 @@ export const Chat = () => {
           if (customization?.generatedAvatarUrl) {
             setCustomAvatarUrl(customization.generatedAvatarUrl);
           }
+          if (customization?.buddyName) {
+            setBuddyName(customization.buddyName);
+          }
         }
       }
     };
@@ -82,6 +86,9 @@ export const Chat = () => {
           }
           if (customization?.generatedAvatarUrl) {
             setCustomAvatarUrl(customization.generatedAvatarUrl);
+          }
+          if (customization?.buddyName) {
+            setBuddyName(customization.buddyName);
           }
         }
       )
@@ -112,11 +119,22 @@ export const Chat = () => {
     const lastMessage = messages[messages.length - 1];
     const lastIndex = messages.length - 1;
     
-    if (lastMessage && lastMessage.role === "assistant" && !isLoading && typingMessageIndex !== lastIndex) {
+    // Only trigger typing effect for new assistant messages that don't have displayedContent yet
+    if (lastMessage && 
+        lastMessage.role === "assistant" && 
+        !isLoading && 
+        !lastMessage.displayedContent &&
+        typingMessageIndex !== lastIndex) {
+      
       setTypingMessageIndex(lastIndex);
       
       const words = lastMessage.content.split(' ');
       let currentWordIndex = 0;
+      
+      // Initialize with empty displayedContent
+      setMessages(prev => prev.map((msg, idx) => 
+        idx === lastIndex ? { ...msg, displayedContent: '' } : msg
+      ));
       
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
@@ -138,6 +156,10 @@ export const Chat = () => {
             clearInterval(typingIntervalRef.current);
             typingIntervalRef.current = null;
           }
+          // Set displayedContent to full content to mark as complete
+          setMessages(prev => prev.map((msg, idx) => 
+            idx === lastIndex ? { ...msg, displayedContent: msg.content } : msg
+          ));
           setTypingMessageIndex(null);
         }
       }, 80); // 80ms per word
@@ -365,12 +387,19 @@ export const Chat = () => {
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-3 items-start animate-fade-in`}
             >
               {msg.role === "assistant" && (
-                <BuddyAvatar 
-                  personality={buddyPersonality} 
-                  size="md" 
-                  animate={isLastMessage && !isTyping}
-                  customAvatarUrl={customAvatarUrl}
-                />
+                <div className="flex flex-col items-center gap-1">
+                  <BuddyAvatar 
+                    personality={buddyPersonality} 
+                    size="md" 
+                    animate={isLastMessage && !isTyping}
+                    customAvatarUrl={customAvatarUrl}
+                  />
+                  {buddyName && (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {buddyName}
+                    </span>
+                  )}
+                </div>
               )}
               <div
                 className={`max-w-2xl rounded-xl px-5 py-4 ${
@@ -404,12 +433,19 @@ export const Chat = () => {
 
         {isLoading && (
           <div className="flex justify-start gap-3 items-start">
-            <BuddyAvatar 
-              personality={buddyPersonality} 
-              size="md" 
-              animate={true}
-              customAvatarUrl={customAvatarUrl}
-            />
+            <div className="flex flex-col items-center gap-1">
+              <BuddyAvatar 
+                personality={buddyPersonality} 
+                size="md" 
+                animate={true}
+                customAvatarUrl={customAvatarUrl}
+              />
+              {buddyName && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {buddyName}
+                </span>
+              )}
+            </div>
             <div className="max-w-2xl rounded-xl px-5 py-4 bg-[hsl(var(--buddy-message))]">
               <div className="flex gap-2">
                 <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
