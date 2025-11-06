@@ -5,7 +5,6 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Upload, Check, X, Loader2, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface TaskItem {
   id: string;
@@ -266,52 +265,50 @@ export const TaskPackageView = ({ packageId, userId, onBack, onStartTask }: Task
         <div className="space-y-4">
           {tasks.map((task) => (
             <Card key={task.id} className="p-6">
-              <div className="flex gap-4">
-                <div className="flex items-start pt-1">
-                  <Checkbox
-                    checked={task.is_completed}
-                    onCheckedChange={() =>
-                      toggleTaskCompletion(task.id, task.is_completed)
-                    }
+              <div className="space-y-4">
+                <div className="mb-4">
+                  <img
+                    src={task.original_image_url}
+                    alt="Aufgabe"
+                    className="w-32 h-32 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => setEnlargedImage(task.original_image_url)}
                   />
                 </div>
-                <div className="flex-1">
-                  <div className="mb-4">
-                    <img
-                      src={task.original_image_url}
-                      alt="Aufgabe"
-                      className="w-32 h-32 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => setEnlargedImage(task.original_image_url)}
-                    />
-                  </div>
-                  {task.simplified_content ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Aufgabe vorbereitet und bereit zum Durchgehen
-                      </p>
-                      {!task.is_completed && onStartTask && (
-                        <Button
-                          onClick={() => handleStartTask(task.id, task)}
-                          className="w-full"
-                        >
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Mit Buddy durchgehen
-                        </Button>
-                      )}
-                      {task.is_completed && (
-                        <div className="flex items-center gap-2 text-sm text-green-600">
-                          <Check className="h-4 w-4" />
-                          <span>Erfolgreich bearbeitet!</span>
+                {task.simplified_content ? (
+                  <div className="space-y-3">
+                    {task.is_completed ? (
+                      <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
+                        <Check className="h-4 w-4" />
+                        <span>Erfolgreich bearbeitet!</span>
+                      </div>
+                    ) : (
+                      onStartTask && (
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleStartTask(task.id, task)}
+                            className="flex-1"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            Mit Buddy durchgehen
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => toggleTaskCompletion(task.id, false)}
+                            className="flex-1"
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Als erledigt markieren
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Wird vereinfacht...</span>
-                    </div>
-                  )}
-                </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Wird vereinfacht...</span>
+                  </div>
+                )}
               </div>
             </Card>
           ))}
