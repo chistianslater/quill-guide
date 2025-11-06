@@ -399,7 +399,7 @@ Verbinde JEDE Lernaktivität mit den Interessen des Lerners.`;
     }
 
     // ========================================================================
-    // CALL AI WITH WEAKNESS DETECTION
+    // CALL AI WITH WEAKNESS DETECTION & RETRY MECHANISM
     // ========================================================================
 
     // Add weakness detection instructions to system prompt
@@ -420,62 +420,118 @@ Wenn du solche Signale erkennst, passe deinen Ansatz an:
 
     const fullSystemPrompt = systemPrompt + weaknessDetectionPrompt;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: fullSystemPrompt },
-          ...messages,
-        ],
-        stream: true,
-        tools: [{
-          type: "function",
-          function: {
-            name: "detect_weakness",
-            description: "Erkenne Schwachstellen oder Schwierigkeiten beim Lerner",
-            parameters: {
-              type: "object",
-              properties: {
-                has_difficulty: {
-                  type: "boolean",
-                  description: "Hat der Lerner Schwierigkeiten mit dem aktuellen Thema?"
-                },
-                indicators: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Liste der erkannten Schwierigkeits-Indikatoren"
+    // Helper function for AI Gateway calls with retry
+    const callAIGateway = async (retries = 3, delay = 1000): Promise<Response> => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          console.log(`AI Gateway call attempt ${i + 1}/${retries}`);
+          
+          const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                { role: "system", content: fullSystemPrompt },
+                ...messages,
+              ],
+              stream: true,
+              tools: [{
+                type: "function",
+                function: {
+                  name: "detect_weakness",
+                  description: "Erkenne Schwachstellen oder Schwierigkeiten beim Lerner",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      has_difficulty: {
+                        type: "boolean",
+                        description: "Hat der Lerner Schwierigkeiten mit dem aktuellen Thema?"
+                      },
+                      indicators: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Liste der erkannten Schwierigkeits-Indikatoren"
+                      }
+                    }
+                  }
                 }
-              }
-            }
+              }]
+            }),
+          });
+
+          if (response.ok) {
+            console.log("AI Gateway call successful");
+            return response;
           }
-        }]
-      }),
-    });
+
+          // Don't retry on 4xx errors (client errors)
+          if (response.status >= 400 && response.status < 500) {
+            const errorText = await response.text();
+            console.error(`AI Gateway client error ${response.status}:`, errorText);
+            return response;
+          }
+
+          // Log error for 5xx (server errors) and retry
+          const errorText = await response.text();
+          console.error(`AI Gateway error ${response.status} (attempt ${i + 1}/${retries}):`, errorText);
+
+          // Wait before retry with exponential backoff
+          if (i < retries - 1) {
+            const waitTime = delay * Math.pow(2, i);
+            console.log(`Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        } catch (error) {
+          console.error(`AI Gateway request failed (attempt ${i + 1}/${retries}):`, error);
+          
+          // Wait before retry
+          if (i < retries - 1) {
+            const waitTime = delay * Math.pow(2, i);
+            console.log(`Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+      }
+      
+      throw new Error("AI Gateway unavailable after multiple retries");
+    };
+
+    let response: Response;
+    try {
+      response = await callAIGateway();
+    } catch (error) {
+      console.error("All AI Gateway retry attempts failed:", error);
+      return new Response(
+        JSON.stringify({ 
+          error: "Der KI-Dienst ist momentan nicht erreichbar. Bitte versuche es in ein paar Sekunden erneut." 
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Zu viele Anfragen. Bitte versuche es später." }),
+          JSON.stringify({ error: "Zu viele Anfragen. Bitte versuche es in einer Minute erneut." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Zahlung erforderlich. Bitte Guthaben aufladen." }),
+          JSON.stringify({ error: "KI-Guthaben aufgebraucht. Bitte Guthaben aufladen." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
       const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
+      console.error("AI Gateway final error:", response.status, errorText);
       return new Response(
-        JSON.stringify({ error: "KI-Dienst nicht verfügbar" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Der KI-Dienst ist momentan nicht verfügbar. Bitte versuche es später erneut." }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
