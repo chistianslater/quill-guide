@@ -228,70 +228,80 @@ const Index = () => {
   }
 
   return (
-    <div className="relative h-screen">
-      {activeTask && (
-        <div className="absolute top-4 left-4 right-4 z-10 mx-auto max-w-md">
-          <Card className="p-4 bg-primary/10 border-primary">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Package className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm font-semibold">Aktive Aufgabe</p>
-                  <p className="text-xs text-muted-foreground">
-                    {activeTask.package_title || "Aus Lernkorb"}
-                  </p>
+    <div className="flex flex-col h-screen">
+      {/* Fixed Header */}
+      <header className="sticky top-0 z-20 bg-background border-b">
+        <div className="flex items-center justify-between p-4">
+          {/* Active Task Badge */}
+          {activeTask && (
+            <Card className="p-3 bg-primary/10 border-primary flex-1 mr-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Package className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="text-xs font-semibold">Aktive Aufgabe</p>
+                    <p className="text-xs text-muted-foreground">
+                      {activeTask.package_title || "Aus Lernkorb"}
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveTask(null)}
+                >
+                  Beenden
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setActiveTask(null)}
-              >
-                Beenden
-              </Button>
-            </div>
-          </Card>
+            </Card>
+          )}
+          
+          {/* Header Actions */}
+          <div className="flex gap-2 ml-auto">
+            {/* DEV: Manual Assessment Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setNeedsComprehensiveAssessment(true)}
+              className="border-orange-500 text-orange-600 hover:bg-orange-50"
+            >
+              🔧 DEV: Assessment starten
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowTaskBasket(true)}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Lernkorb
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowAvatarCustomizer(true)}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Avatar
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowSettings(true)}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Einstellungen
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      )}
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
-        {/* DEV: Manual Assessment Trigger */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setNeedsComprehensiveAssessment(true)}
-          className="border-orange-500 text-orange-600 hover:bg-orange-50"
-        >
-          🔧 DEV: Assessment starten
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setShowTaskBasket(true)}
-        >
-          <Package className="h-4 w-4 mr-2" />
-          Lernkorb
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setShowAvatarCustomizer(true)}
-        >
-          <User className="h-4 w-4 mr-2" />
-          Avatar
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setShowSettings(true)}
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Einstellungen
-        </Button>
-        <Button variant="ghost" size="icon" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" />
-        </Button>
-      </div>
-      <Chat activeTask={activeTask} onTaskComplete={handleTaskComplete} />
+      </header>
+      
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden">
+        <Chat activeTask={activeTask} onTaskComplete={handleTaskComplete} />
+      </main>
       
       {showAvatarCustomizer && (
         <AvatarCustomizer
