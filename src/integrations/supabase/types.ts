@@ -58,7 +58,9 @@ export type Database = {
           competency_id: string
           confidence_level: number
           created_at: string
+          estimated_level: number | null
           id: string
+          is_priority: boolean | null
           last_practiced_at: string | null
           last_struggle_at: string | null
           metadata: Json | null
@@ -73,7 +75,9 @@ export type Database = {
           competency_id: string
           confidence_level?: number
           created_at?: string
+          estimated_level?: number | null
           id?: string
+          is_priority?: boolean | null
           last_practiced_at?: string | null
           last_struggle_at?: string | null
           metadata?: Json | null
@@ -88,7 +92,9 @@ export type Database = {
           competency_id?: string
           confidence_level?: number
           created_at?: string
+          estimated_level?: number | null
           id?: string
+          is_priority?: boolean | null
           last_practiced_at?: string | null
           last_struggle_at?: string | null
           metadata?: Json | null
@@ -231,6 +237,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      subject_assessments: {
+        Row: {
+          actual_grade_level: number
+          answers_given: Json | null
+          assessment_date: string | null
+          confidence: number | null
+          created_at: string | null
+          discrepancy: number | null
+          estimated_level: number
+          id: string
+          is_priority: boolean | null
+          questions_asked: Json | null
+          subject: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actual_grade_level: number
+          answers_given?: Json | null
+          assessment_date?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          discrepancy?: number | null
+          estimated_level: number
+          id?: string
+          is_priority?: boolean | null
+          questions_asked?: Json | null
+          subject: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actual_grade_level?: number
+          answers_given?: Json | null
+          assessment_date?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          discrepancy?: number | null
+          estimated_level?: number
+          id?: string
+          is_priority?: boolean | null
+          questions_asked?: Json | null
+          subject?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_interests: {
         Row: {

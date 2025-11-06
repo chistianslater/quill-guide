@@ -4,6 +4,7 @@ import { Auth } from "@/components/Auth";
 import { Chat } from "@/components/Chat";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { InitialAssessment } from "@/components/InitialAssessment";
+import { ComprehensiveAssessment } from "@/components/ComprehensiveAssessment";
 import { Button } from "@/components/ui/button";
 import { LogOut, Settings } from "lucide-react";
 
@@ -13,6 +14,7 @@ const Index = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showAssessment, setShowAssessment] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [needsComprehensiveAssessment, setNeedsComprehensiveAssessment] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
@@ -35,8 +37,13 @@ const Index = () => {
         
         setProfile(profileData);
         
+        // Check if comprehensive assessment is completed
+        const assessmentCompleted = profileData?.preferences?.assessment_completed || false;
+        
         if (!interests || interests.length === 0) {
           setNeedsOnboarding(true);
+        } else if (!assessmentCompleted && profileData?.grade_level) {
+          setNeedsComprehensiveAssessment(true);
         }
       }
       
@@ -77,7 +84,25 @@ const Index = () => {
       <div className="min-h-screen bg-background p-4 flex items-center justify-center">
         <ProfileSettings 
           userId={session.user.id} 
-          onComplete={() => setNeedsOnboarding(false)}
+          onComplete={() => {
+            setNeedsOnboarding(false);
+            if (profile?.grade_level) {
+              setNeedsComprehensiveAssessment(true);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Comprehensive assessment for subject-specific evaluation
+  if (needsComprehensiveAssessment && profile?.grade_level) {
+    return (
+      <div className="min-h-screen bg-background p-4 flex items-center justify-center">
+        <ComprehensiveAssessment
+          userId={session.user.id}
+          gradeLevel={profile.grade_level}
+          onComplete={() => setNeedsComprehensiveAssessment(false)}
         />
       </div>
     );
