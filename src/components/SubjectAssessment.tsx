@@ -38,6 +38,7 @@ export const SubjectAssessment = ({
   const [inputValue, setInputValue] = useState("");
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
+  const [uncertaintyCount, setUncertaintyCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -110,14 +111,30 @@ export const SubjectAssessment = ({
     setInputValue("");
     setLoading(true);
 
+    // Check if this is an "I don't know" type answer
+    const isUncertainAnswer = inputValue.toLowerCase().match(/(weiß nicht|keine ahnung|verstehe (ich )?(die frage )?nicht|was meinst du|wie meinst du)/);
+    
+    if (isUncertainAnswer) {
+      setUncertaintyCount(prev => prev + 1);
+    }
+
     // Use AI to evaluate if the answer is valid and relevant
     try {
+      const shouldProvideExamples = isUncertainAnswer && uncertaintyCount >= 1;
+      
       const assessmentContext = `Du bewertest gerade Antworten für ein Assessment im Fach ${subject}.
       
 Die aktuelle Frage ist: "${currentQuestion.question}"
 ${currentQuestion.correctAnswer ? `Die korrekte Antwort wäre: "${currentQuestion.correctAnswer}"` : ''}
 
 Der Schüler hat geantwortet: "${inputValue}"
+
+${shouldProvideExamples ? `WICHTIG: Der Schüler ist mehrfach unsicher. Gib ihm 2-3 konkrete BEISPIELANTWORTEN, die er als Orientierung nutzen kann. Zum Beispiel:
+"Kein Problem! Lass mich dir ein paar Beispiele geben:
+- [Beispiel 1]
+- [Beispiel 2]
+- [Beispiel 3]
+Versuch es einfach mit einer dieser Richtungen!"` : ''}
 
 Deine Aufgabe:
 1. Prüfe, ob die Antwort auf die Frage eingeht
@@ -129,7 +146,7 @@ WICHTIG:
 - Sei super freundlich und ermutigend
 - Sage dem Schüler NICHT direkt ob richtig oder falsch
 - Wenn er eine echte Antwort gegeben hat (auch wenn falsch), bedanke dich und mache weiter
-- Maximal 2-3 Sätze`;
+- Maximal 2-3 Sätze (außer bei Beispielantworten)`;
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buddy-chat`,
@@ -197,6 +214,9 @@ WICHTIG:
       if (isValidAttempt) {
         // Save the answer
         setAnswers({ ...answers, [currentQuestion.id]: inputValue });
+        
+        // Reset uncertainty counter for next question
+        setUncertaintyCount(0);
         
         // Move to next question after a short delay
         setTimeout(() => {
