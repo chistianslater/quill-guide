@@ -15,6 +15,7 @@ const Index = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showAssessment, setShowAssessment] = useState(false);
   const [showAvatarCustomizer, setShowAvatarCustomizer] = useState(false);
+  const [needsAvatarCreation, setNeedsAvatarCreation] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [needsComprehensiveAssessment, setNeedsComprehensiveAssessment] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -42,7 +43,13 @@ const Index = () => {
         // Check if comprehensive assessment is completed
         const assessmentCompleted = (profileData as any)?.preferences?.assessment_completed || false;
         
-        if (!interests || interests.length === 0) {
+        // Check if avatar has been created (buddyName exists in avatar_customization)
+        const avatarCustomization = (profileData as any)?.avatar_customization;
+        const hasAvatar = avatarCustomization?.buddyName;
+        
+        if (!hasAvatar) {
+          setNeedsAvatarCreation(true);
+        } else if (!interests || interests.length === 0) {
           setNeedsOnboarding(true);
         } else if (!assessmentCompleted && profileData?.grade_level) {
           setNeedsComprehensiveAssessment(true);
@@ -65,6 +72,17 @@ const Index = () => {
     await supabase.auth.signOut();
   };
 
+  const refreshProfile = async () => {
+    if (!session?.user.id) return;
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    
+    if (profileData) setProfile(profileData);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -80,15 +98,37 @@ const Index = () => {
     return <Auth />;
   }
 
+  // Avatar creation as first step
+  if (needsAvatarCreation) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AvatarCustomizer
+          userId={session.user.id}
+          onClose={() => {
+            setNeedsAvatarCreation(false);
+            setNeedsOnboarding(true);
+          }}
+        />
+      </div>
+    );
+  }
+
   // Onboarding for new users
   if (needsOnboarding) {
     return (
       <div className="min-h-screen bg-background p-4 flex items-center justify-center">
         <ProfileSettings 
           userId={session.user.id} 
-          onComplete={() => {
+          onComplete={async () => {
+            await refreshProfile();
             setNeedsOnboarding(false);
-            if (profile?.grade_level) {
+            // Check again after refresh
+            const { data: updatedProfile } = await supabase
+              .from("profiles")
+              .select("grade_level")
+              .eq("id", session.user.id)
+              .single();
+            if (updatedProfile?.grade_level) {
               setNeedsComprehensiveAssessment(true);
             }
           }}
