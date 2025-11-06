@@ -98,6 +98,18 @@ export const InteractiveTask = ({ taskType, interactiveElement, onSubmit, readOn
   if (interactiveElement.type === 'table' && interactiveElement.data) {
     const tableData = interactiveElement.data as TableData;
     
+    // Check if table data is complete
+    if (!tableData.columns || !tableData.rows || !tableData.cells || 
+        tableData.columns.length === 0 || tableData.rows.length === 0 || tableData.cells.length === 0) {
+      return (
+        <Card className="p-4 bg-muted/50">
+          <p className="text-sm text-muted-foreground text-center">
+            ⚠️ Die Tabelle konnte nicht vollständig geladen werden. Bitte lade die Aufgabe neu hoch.
+          </p>
+        </Card>
+      );
+    }
+    
     return (
       <Card className="p-4 space-y-4">
         <div className="overflow-x-auto">
@@ -105,7 +117,7 @@ export const InteractiveTask = ({ taskType, interactiveElement, onSubmit, readOn
             <thead>
               <tr>
                 <th className="border border-border p-2 bg-muted"></th>
-                {tableData.columns?.map((col, idx) => (
+                {tableData.columns.map((col, idx) => (
                   <th key={idx} className="border border-border p-2 bg-muted font-semibold">
                     {col}
                   </th>
@@ -113,10 +125,10 @@ export const InteractiveTask = ({ taskType, interactiveElement, onSubmit, readOn
               </tr>
             </thead>
             <tbody>
-              {tableData.cells?.map((row, rowIdx) => (
+              {tableData.cells.map((row, rowIdx) => (
                 <tr key={rowIdx}>
                   <td className="border border-border p-2 bg-muted font-semibold">
-                    {tableData.rows?.[rowIdx] || ''}
+                    {tableData.rows[rowIdx] || ''}
                   </td>
                   {row.map((cell, colIdx) => (
                     <td key={colIdx} className="border border-border p-2 text-center">

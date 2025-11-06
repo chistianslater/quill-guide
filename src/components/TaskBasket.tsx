@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Package, ChevronRight } from "lucide-react";
+import { Plus, Package, ChevronRight, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TaskPackageView } from "./TaskPackageView";
 
@@ -116,6 +116,51 @@ export const TaskBasket = ({ userId, onStartTask }: TaskBasketProps) => {
     setIsLoading(false);
   };
 
+  const deletePackage = async (packageId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm("Möchtest du dieses Aufgabenpaket wirklich löschen? Alle darin enthaltenen Aufgaben werden ebenfalls gelöscht.")) {
+      return;
+    }
+
+    // Delete all task items in the package first
+    const { error: tasksError } = await supabase
+      .from("task_items")
+      .delete()
+      .eq("package_id", packageId);
+
+    if (tasksError) {
+      console.error("Error deleting tasks:", tasksError);
+      toast({
+        title: "Fehler",
+        description: "Aufgaben konnten nicht gelöscht werden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Then delete the package
+    const { error: packageError } = await supabase
+      .from("task_packages")
+      .delete()
+      .eq("id", packageId);
+
+    if (packageError) {
+      console.error("Error deleting package:", packageError);
+      toast({
+        title: "Fehler",
+        description: "Aufgabenpaket konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Gelöscht",
+        description: "Aufgabenpaket wurde erfolgreich gelöscht.",
+      });
+      loadPackages();
+    }
+  };
+
   if (selectedPackage) {
     return (
       <TaskPackageView
@@ -196,7 +241,7 @@ export const TaskBasket = ({ userId, onStartTask }: TaskBasketProps) => {
           {packages.map((pkg) => (
             <Card
               key={pkg.id}
-              className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              className="p-6 hover:shadow-lg transition-shadow cursor-pointer group"
               onClick={() => setSelectedPackage(pkg.id)}
             >
               <div className="flex items-center justify-between">
@@ -227,7 +272,17 @@ export const TaskBasket = ({ userId, onStartTask }: TaskBasketProps) => {
                     )}
                   </div>
                 </div>
-                <ChevronRight className="h-6 w-6 text-muted-foreground" />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => deletePackage(pkg.id, e)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                  <ChevronRight className="h-6 w-6 text-muted-foreground" />
+                </div>
               </div>
             </Card>
           ))}
