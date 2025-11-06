@@ -281,9 +281,30 @@ export const TaskPackageView = ({ packageId, userId, onBack, onStartTask }: Task
                 {task.simplified_content ? (
                   <div className="space-y-3">
                     {task.is_completed ? (
-                      <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
-                        <Check className="h-4 w-4" />
-                        <span>Erfolgreich bearbeitet!</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
+                          <Check className="h-4 w-4" />
+                          <span>Erfolgreich bearbeitet!</span>
+                        </div>
+                        {onStartTask && (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleStartTask(task.id, task)}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              Noch einmal durchgehen
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => toggleTaskCompletion(task.id, true)}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Als unerledigt markieren
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       onStartTask && (
