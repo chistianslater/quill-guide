@@ -389,7 +389,33 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
                 interactiveElement={currentTask.structured_task.interactiveElement}
                 onSubmit={(result) => {
                   console.log('Task result:', result);
-                  // Could send this to buddy for feedback
+                  
+                  // Count correct and incorrect answers
+                  const validation = result.validation || {};
+                  const totalAnswers = Object.keys(validation).length;
+                  const correctAnswers = Object.values(validation).filter((v: any) => v === true).length;
+                  const incorrectAnswers = totalAnswers - correctAnswers;
+                  
+                  // Create feedback message
+                  let feedbackMessage = '';
+                  if (correctAnswers === totalAnswers && totalAnswers > 0) {
+                    feedbackMessage = `🎉 Perfekt! Alle ${totalAnswers} Antworten sind richtig! Du hast das super gemacht! Möchtest du eine neue Aufgabe probieren?`;
+                  } else if (correctAnswers > incorrectAnswers) {
+                    feedbackMessage = `👍 Gut gemacht! ${correctAnswers} von ${totalAnswers} Antworten sind richtig. Schau dir die rot markierten Felder nochmal an. Du schaffst das!`;
+                  } else if (correctAnswers > 0) {
+                    feedbackMessage = `💪 Das ist ein guter Anfang! ${correctAnswers} von ${totalAnswers} sind richtig. Lass uns gemeinsam die anderen Aufgaben nochmal durchgehen. Wo brauchst du Hilfe?`;
+                  } else {
+                    feedbackMessage = `🤔 Hmm, das war noch nicht ganz richtig. Aber kein Problem! Soll ich dir einen Tipp geben, wie du die Aufgabe lösen kannst?`;
+                  }
+                  
+                  // Add feedback as assistant message
+                  setMessages(prev => [...prev, {
+                    role: "assistant",
+                    content: feedbackMessage,
+                    timestamp: Date.now(),
+                    isComplete: true
+                  }]);
+                  setLastBuddyMessageTime(Date.now());
                 }}
               />
             </div>

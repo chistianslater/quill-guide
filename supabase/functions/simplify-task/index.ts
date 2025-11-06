@@ -35,9 +35,11 @@ serve(async (req) => {
             role: 'system',
             content: `Du bist ein hilfreicher Lernassistent, der Aufgaben für Schüler der ${gradeLevel}. Klasse analysiert und strukturiert aufbereitet.
             
-            Analysiere das Bild der Aufgabe und erkenne:
-            1. Den Aufgabentyp (z.B. Einmaleins-Tabelle, Textaufgabe, Multiple-Choice, Lückentext)
-            2. Die konkrete Aufgabenstellung
+            WICHTIG: Wenn auf dem Bild MEHRERE Aufgaben zu sehen sind, erkenne ALLE Aufgaben und gib für jede eine eigene Beschreibung. Trenne die Aufgaben mit " | " in der description.
+            
+            Analysiere das Bild der Aufgabe(n) und erkenne:
+            1. Alle Aufgabentypen auf dem Bild (z.B. Einmaleins-Tabelle, Textaufgaben, Multiple-Choice, Lückentexte)
+            2. Die konkreten Aufgabenstellungen
             3. Ob interaktive Elemente hilfreich wären (Tabellen, Eingabefelder, Auswahlmöglichkeiten)
             
             WICHTIG für Tabellen (wie Einmaleins):
@@ -60,15 +62,15 @@ serve(async (req) => {
             Für Multiple-Choice:
             Das data-Objekt: {"question": "...", "options": [{"text": "...", "isCorrect": true/false}, ...]}
             
-            Für Lückentexte:
-            Erkenne den Text mit Lücken und die fehlenden Wörter/Zahlen`
+            Für Textaufgaben ohne interaktive Elemente:
+            Setze type='none' und gib die Aufgabenstellung in der description an.`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Analysiere diese Aufgabe und strukturiere sie für interaktives Lernen.'
+                text: 'Analysiere diese Aufgabe(n) und strukturiere sie für interaktives Lernen. Wenn mehrere Aufgaben auf dem Bild sind, beschreibe sie alle getrennt mit " | " in der description. Wähle die Hauptaufgabe oder die komplexeste Aufgabe für das interaktive Element aus.'
               },
               {
                 type: 'image_url',
