@@ -312,6 +312,7 @@ export type Database = {
           package_id: string
           position: number
           simplified_content: string | null
+          structured_task: Json | null
           updated_at: string
           user_id: string
         }
@@ -323,6 +324,7 @@ export type Database = {
           package_id: string
           position?: number
           simplified_content?: string | null
+          structured_task?: Json | null
           updated_at?: string
           user_id: string
         }
@@ -334,6 +336,7 @@ export type Database = {
           package_id?: string
           position?: number
           simplified_content?: string | null
+          structured_task?: Json | null
           updated_at?: string
           user_id?: string
         }

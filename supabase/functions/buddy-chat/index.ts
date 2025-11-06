@@ -397,6 +397,23 @@ ${activeTask.package_title ? `Paket: ${activeTask.package_title}` : ''}
 VEREINFACHTER INHALT DER AUFGABE:
 ${activeTask.simplified_content}
 
+${activeTask.structured_task ? `
+📋 INTERAKTIVE AUFGABE:
+Die Aufgabe wurde als "${activeTask.structured_task.taskType}" erkannt.
+Der Lerner sieht jetzt ein interaktives Element (${activeTask.structured_task.interactiveElement?.type}), mit dem er arbeiten kann.
+
+WICHTIG FÜR DICH:
+- Der Lerner kann die Aufgabe direkt im interaktiven Element bearbeiten
+- Beziehe dich auf die Tabelle/Eingabefelder/Auswahlmöglichkeiten
+- Sage z.B. "Schau dir die Tabelle an" oder "Füll mal die erste Zeile aus"
+- Leite den Lerner an, das interaktive Element zu nutzen
+- Du kannst nachfragen "Was steht in Zeile 2, Spalte 3?" etc.
+- Wenn der Lerner etwas ausfüllt, gib Feedback dazu
+
+HINWEISE FÜR DIE AUFGABE:
+${activeTask.structured_task.hints?.join('\n') || 'Keine speziellen Hinweise'}
+` : ''}
+
 ORIGINALBILD DER AUFGABE:
 [Siehe Bild unter: ${activeTask.original_image_url}]
 

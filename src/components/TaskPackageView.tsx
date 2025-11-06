@@ -10,6 +10,7 @@ interface TaskItem {
   id: string;
   original_image_url: string;
   simplified_content: string | null;
+  structured_task?: any | null;
   position: number;
   is_completed: boolean;
   created_at: string;
@@ -129,10 +130,13 @@ export const TaskPackageView = ({ packageId, userId, onBack, onStartTask }: Task
 
         if (simplifyError) throw simplifyError;
 
-        // Update task with simplified content
+        // Update task with simplified content and structured data
         await supabase
           .from("task_items")
-          .update({ simplified_content: simplifyData.simplifiedContent })
+          .update({ 
+            simplified_content: simplifyData.simplifiedContent,
+            structured_task: simplifyData.structuredTask || null
+          })
           .eq("id", taskItem.id);
       } catch (error) {
         console.error("Simplification error:", error);

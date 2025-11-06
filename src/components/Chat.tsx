@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Volume2 } from "lucide-react";
 import { BuddyAvatar } from "./BuddyAvatar";
+import { InteractiveTask } from "./InteractiveTask";
 import { TypeAnimation } from 'react-type-animation';
 interface Message {
   role: "user" | "assistant";
@@ -17,6 +18,7 @@ interface ActiveTask {
   id: string;
   original_image_url: string;
   simplified_content: string;
+  structured_task?: any | null;
   package_title?: string;
 }
 
@@ -370,6 +372,20 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
                 </Button>}
             </div>;
       })}
+
+        {/* Show interactive task element after first message if available */}
+        {currentTask?.structured_task && messages.length > 0 && (
+          <div className="animate-fade-in">
+            <InteractiveTask
+              taskType={currentTask.structured_task.taskType}
+              interactiveElement={currentTask.structured_task.interactiveElement}
+              onSubmit={(result) => {
+                console.log('Task result:', result);
+                // Could send this to buddy for feedback
+              }}
+            />
+          </div>
+        )}
 
         {isLoading && <div className="flex justify-start gap-3 items-start">
             {!isLoadingProfile && <BuddyAvatar personality={buddyPersonality} size="md" animate={true} customAvatarUrl={customAvatarUrl} />}
