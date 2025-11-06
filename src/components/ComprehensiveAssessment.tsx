@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubjectAssessment } from "./SubjectAssessment";
+import { BuddyPersonalitySelector } from "./BuddyPersonalitySelector";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ export const ComprehensiveAssessment = ({
   gradeLevel, 
   onComplete 
 }: ComprehensiveAssessmentProps) => {
+  const [showPersonalitySelection, setShowPersonalitySelection] = useState(true);
   const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
   const [assessmentResults, setAssessmentResults] = useState<Record<string, number>>({});
   const [showSummary, setShowSummary] = useState(false);
@@ -105,6 +107,33 @@ export const ComprehensiveAssessment = ({
 
     onComplete();
   };
+
+  const handlePersonalitySelected = () => {
+    setShowPersonalitySelection(false);
+    toast({
+      title: "Super! 🎉",
+      description: "Jetzt lernt dein Buddy dich besser kennen!"
+    });
+  };
+
+  if (showPersonalitySelection) {
+    return (
+      <Card className="w-full max-w-3xl mx-auto">
+        <CardHeader>
+          <CardTitle className="text-3xl text-center">Willkommen! 👋</CardTitle>
+          <CardDescription className="text-center text-base">
+            Bevor wir starten: Welcher Buddy-Typ passt am besten zu dir?
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BuddyPersonalitySelector 
+            userId={userId} 
+            onSelect={handlePersonalitySelected}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (showSummary) {
     const discrepancies = Object.entries(assessmentResults).map(([subject, level]) => ({

@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { X, Plus, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
 import { ProgressReport } from "./ProgressReport";
+import { BuddyPersonalitySelector } from "./BuddyPersonalitySelector";
 
 interface Interest {
   id: string;
@@ -238,8 +239,9 @@ export const ProfileSettings = ({ userId, onComplete, onOpenAssessment }: Profil
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="interests" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="interests">Interessen</TabsTrigger>
+            <TabsTrigger value="buddy">Buddy</TabsTrigger>
             <TabsTrigger value="profile">Profil</TabsTrigger>
             <TabsTrigger value="competencies">Schwerpunkte</TabsTrigger>
             <TabsTrigger value="progress">Fortschritt</TabsTrigger>
@@ -290,6 +292,10 @@ export const ProfileSettings = ({ userId, onComplete, onOpenAssessment }: Profil
                 ))
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="buddy" className="mt-4">
+            <BuddyPersonalitySelector userId={userId} />
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-4 mt-4">

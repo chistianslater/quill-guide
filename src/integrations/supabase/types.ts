@@ -204,6 +204,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          buddy_personality: string | null
           created_at: string
           display_name: string
           federal_state: string | null
@@ -216,6 +217,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          buddy_personality?: string | null
           created_at?: string
           display_name: string
           federal_state?: string | null
@@ -228,6 +230,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          buddy_personality?: string | null
           created_at?: string
           display_name?: string
           federal_state?: string | null
