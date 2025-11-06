@@ -40,6 +40,7 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
   const [buddyName, setBuddyName] = useState<string>("");
   const [currentTask, setCurrentTask] = useState<ActiveTask | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [givenHints, setGivenHints] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -387,6 +388,21 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
               <InteractiveTask
                 taskType={currentTask.structured_task.taskType}
                 interactiveElement={currentTask.structured_task.interactiveElement}
+                hints={currentTask.structured_task.hints || []}
+                onRequestHint={() => {
+                  const hints = currentTask.structured_task.hints || [];
+                  if (givenHints < hints.length) {
+                    const nextHint = hints[givenHints];
+                    setMessages(prev => [...prev, {
+                      role: "assistant",
+                      content: `💡 Tipp ${givenHints + 1}: ${nextHint}`,
+                      timestamp: Date.now(),
+                      isComplete: true
+                    }]);
+                    setGivenHints(prev => prev + 1);
+                    setLastBuddyMessageTime(Date.now());
+                  }
+                }}
                 onSubmit={(result) => {
                   console.log('Task result:', result);
                   

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, X } from "lucide-react";
+import { Check, X, Lightbulb } from "lucide-react";
 
 interface TableData {
   rows: string[];
@@ -30,11 +30,13 @@ interface InteractiveTaskProps {
     type: 'table' | 'choices' | 'inputs' | 'none';
     data: any;
   };
+  hints?: string[];
+  onRequestHint?: () => void;
   onSubmit?: (answers: any) => void;
   readOnly?: boolean;
 }
 
-export const InteractiveTask = ({ taskType, interactiveElement, onSubmit, readOnly = false }: InteractiveTaskProps) => {
+export const InteractiveTask = ({ taskType, interactiveElement, hints = [], onRequestHint, onSubmit, readOnly = false }: InteractiveTaskProps) => {
   const [answers, setAnswers] = useState<any>({});
   const [validation, setValidation] = useState<any>({});
 
@@ -165,9 +167,17 @@ export const InteractiveTask = ({ taskType, interactiveElement, onSubmit, readOn
           </table>
         </div>
         {!readOnly && (
-          <Button onClick={handleValidate} className="w-full">
-            Überprüfen
-          </Button>
+          <div className="flex gap-2">
+            {hints.length > 0 && onRequestHint && (
+              <Button onClick={onRequestHint} variant="outline" className="flex-1">
+                <Lightbulb className="mr-2 h-4 w-4" />
+                Tipp benötigt?
+              </Button>
+            )}
+            <Button onClick={handleValidate} className="flex-1">
+              Überprüfen
+            </Button>
+          </div>
         )}
       </Card>
     );
@@ -209,10 +219,20 @@ export const InteractiveTask = ({ taskType, interactiveElement, onSubmit, readOn
             </Button>
           ))}
         </div>
-        {!readOnly && answers.selectedOption !== undefined && (
-          <Button onClick={handleValidate} className="w-full">
-            Überprüfen
-          </Button>
+        {!readOnly && (
+          <div className="flex gap-2">
+            {hints.length > 0 && onRequestHint && (
+              <Button onClick={onRequestHint} variant="outline" className="flex-1">
+                <Lightbulb className="mr-2 h-4 w-4" />
+                Tipp benötigt?
+              </Button>
+            )}
+            {answers.selectedOption !== undefined && (
+              <Button onClick={handleValidate} className="flex-1">
+                Überprüfen
+              </Button>
+            )}
+          </div>
         )}
       </Card>
     );
