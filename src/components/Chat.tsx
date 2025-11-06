@@ -35,22 +35,50 @@ export const Chat = () => {
       const uid = data.user?.id || null;
       setUserId(uid);
 
-      // Fetch TTS setting and buddy personality
+      // Fetch TTS setting and avatar customization
       if (uid) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('tts_enabled, buddy_personality')
+          .select('tts_enabled, avatar_customization')
           .eq('id', uid)
           .single();
         
         if (profile) {
           setTtsEnabled(profile.tts_enabled || false);
-          setBuddyPersonality(profile.buddy_personality as any || "encouraging");
+          // Use baseAvatar from customization if available
+          const customization = profile.avatar_customization as any;
+          if (customization?.baseAvatar) {
+            setBuddyPersonality(customization.baseAvatar as any);
+          }
         }
       }
     };
     getUser();
-  }, []);
+
+    // Subscribe to profile changes to update avatar in real-time
+    const profileSubscription = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`
+        },
+        (payload) => {
+          const customization = (payload.new as any)?.avatar_customization;
+          if (customization?.baseAvatar) {
+            setBuddyPersonality(customization.baseAvatar as any);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      profileSubscription.unsubscribe();
+    };
+  }, [userId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
