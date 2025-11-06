@@ -21,7 +21,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Call Lovable AI to analyze and simplify the task
+    // Call Lovable AI to analyze and simplify the task with structured output
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -33,26 +33,33 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Du bist ein hilfreicher Lernassistent, der Aufgaben für Schüler der ${gradeLevel}. Klasse vereinfacht aufbereitet. 
-            Analysiere das Bild der Aufgabe und:
-            1. Erkenne den Text und die Aufgabenstellung
-            2. Vereinfache die Aufgabe so, dass sie für das Lernniveau verständlich ist
-            3. Strukturiere die Aufgabe klar und übersichtlich
-            4. Füge hilfreiche Tipps hinzu, wenn nötig
+            content: `Du bist ein hilfreicher Lernassistent, der Aufgaben für Schüler der ${gradeLevel}. Klasse analysiert und strukturiert aufbereitet.
             
-            Gib die Antwort im folgenden Format zurück:
-            ### Aufgabe
-            [Vereinfachte Aufgabenstellung]
+            Analysiere das Bild der Aufgabe und erkenne:
+            1. Den Aufgabentyp (z.B. Einmaleins-Tabelle, Textaufgabe, Multiple-Choice, Lückentext)
+            2. Die konkrete Aufgabenstellung
+            3. Ob interaktive Elemente hilfreich wären (Tabellen, Eingabefelder, Auswahlmöglichkeiten)
             
-            ### Hinweise
-            [Hilfreiche Tipps zum Lösen]`
+            Für Aufgaben mit Tabellen (wie Einmaleins):
+            - Erkenne die Zeilen und Spalten
+            - Identifiziere, welche Felder ausgefüllt werden sollen
+            - Berechne die korrekten Lösungen
+            
+            Für Multiple-Choice:
+            - Identifiziere die Frage
+            - Liste alle Antwortoptionen auf
+            - Markiere die richtige(n) Antwort(en)
+            
+            Für Lückentexte:
+            - Erkenne den Text mit Lücken
+            - Identifiziere die fehlenden Wörter/Zahlen`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Bitte analysiere diese Aufgabe und bereite sie verständlich auf.'
+                text: 'Analysiere diese Aufgabe und strukturiere sie für interaktives Lernen.'
               },
               {
                 type: 'image_url',
@@ -63,6 +70,49 @@ serve(async (req) => {
             ]
           }
         ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'structure_task',
+              description: 'Strukturiere die Aufgabe mit interaktiven Elementen',
+              parameters: {
+                type: 'object',
+                properties: {
+                  taskType: {
+                    type: 'string',
+                    enum: ['table', 'multiple_choice', 'fill_blanks', 'text', 'calculation'],
+                    description: 'Der Typ der Aufgabe'
+                  },
+                  description: {
+                    type: 'string',
+                    description: 'Vereinfachte Beschreibung der Aufgabe'
+                  },
+                  interactiveElement: {
+                    type: 'object',
+                    properties: {
+                      type: {
+                        type: 'string',
+                        enum: ['table', 'choices', 'inputs', 'none']
+                      },
+                      data: {
+                        type: 'object',
+                        description: 'Die Daten für das interaktive Element'
+                      }
+                    }
+                  },
+                  hints: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Hilfreiche Tipps zum Lösen'
+                  }
+                },
+                required: ['taskType', 'description', 'interactiveElement', 'hints']
+              }
+            }
+          }
+        ],
+        tool_choice: { type: 'function', function: { name: 'structure_task' } }
       }),
     });
 
@@ -73,12 +123,22 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const simplifiedContent = data.choices[0].message.content;
-
-    console.log('Task simplified successfully');
+    console.log('AI Response:', JSON.stringify(data, null, 2));
+    
+    // Extract structured task data from tool call
+    const toolCall = data.choices[0]?.message?.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== 'structure_task') {
+      throw new Error('No valid structured task data returned from AI');
+    }
+    
+    const structuredTask = JSON.parse(toolCall.function.arguments);
+    console.log('Task structured successfully:', structuredTask.taskType);
 
     return new Response(
-      JSON.stringify({ simplifiedContent }),
+      JSON.stringify({ 
+        simplifiedContent: structuredTask.description,
+        structuredTask 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
