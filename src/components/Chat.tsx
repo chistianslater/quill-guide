@@ -23,6 +23,7 @@ export const Chat = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -50,6 +51,9 @@ export const Chat = () => {
           if (customization?.baseAvatar) {
             setBuddyPersonality(customization.baseAvatar as any);
           }
+          if (customization?.generatedAvatarUrl) {
+            setCustomAvatarUrl(customization.generatedAvatarUrl);
+          }
         }
       }
     };
@@ -70,6 +74,9 @@ export const Chat = () => {
           const customization = (payload.new as any)?.avatar_customization;
           if (customization?.baseAvatar) {
             setBuddyPersonality(customization.baseAvatar as any);
+          }
+          if (customization?.generatedAvatarUrl) {
+            setCustomAvatarUrl(customization.generatedAvatarUrl);
           }
         }
       )
@@ -353,7 +360,12 @@ export const Chat = () => {
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-3 items-start animate-fade-in`}
             >
               {msg.role === "assistant" && (
-                <BuddyAvatar personality={buddyPersonality} size="sm" animate={isLastMessage && !isTyping} />
+                <BuddyAvatar 
+                  personality={buddyPersonality} 
+                  size="sm" 
+                  animate={isLastMessage && !isTyping}
+                  customAvatarUrl={customAvatarUrl}
+                />
               )}
               <div
                 className={`max-w-2xl rounded-xl px-5 py-4 ${
@@ -387,7 +399,12 @@ export const Chat = () => {
 
         {isLoading && (
           <div className="flex justify-start gap-3 items-start">
-            <BuddyAvatar personality={buddyPersonality} size="sm" animate={true} />
+            <BuddyAvatar 
+              personality={buddyPersonality} 
+              size="sm" 
+              animate={true}
+              customAvatarUrl={customAvatarUrl}
+            />
             <div className="max-w-2xl rounded-xl px-5 py-4 bg-[hsl(var(--buddy-message))]">
               <div className="flex gap-2">
                 <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />

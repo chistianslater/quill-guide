@@ -82,28 +82,94 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
 
   const handleSave = async () => {
     setLoading(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ 
-        avatar_customization: customization,
-        buddy_personality: customization.baseAvatar
-      })
-      .eq("id", userId);
-
-    if (error) {
-      toast({
-        title: "Fehler",
-        description: "Konnte Avatar nicht speichern",
-        variant: "destructive"
+    
+    try {
+      // Generate custom avatar based on all customization options
+      const avatarPrompt = generateAvatarPrompt(customization);
+      
+      // Generate the avatar image using Supabase edge function
+      const { data, error: fnError } = await supabase.functions.invoke('generate-avatar', {
+        body: { 
+          prompt: avatarPrompt,
+          userId 
+        }
       });
-    } else {
+      
+      if (fnError) throw fnError;
+      if (!data.success) throw new Error(data.error || 'Avatar generation failed');
+      
+      // Save customization and generated avatar URL
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          avatar_customization: {
+            ...customization,
+            generatedAvatarUrl: data.imageUrl
+          },
+          buddy_personality: customization.baseAvatar
+        })
+        .eq("id", userId);
+
+      if (error) throw error;
+      
       toast({
         title: "Gespeichert! 🎉",
         description: "Dein Avatar wurde aktualisiert"
       });
       onClose();
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Konnte Avatar nicht speichern",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const generateAvatarPrompt = (custom: typeof customization) => {
+    const personalityDescriptions = {
+      encouraging: "warm, supportive, uplifting expression with bright eyes",
+      funny: "playful, cheerful expression with a big smile",
+      professional: "calm, confident expression with attentive eyes",
+      friendly: "welcoming, kind expression with a gentle smile"
+    };
+
+    const skinToneDescriptions = {
+      light: "fair skin tone",
+      medium: "medium skin tone",
+      tan: "tan skin tone",
+      dark: "dark skin tone"
+    };
+
+    const hairStyleDescriptions = {
+      short: "short hair",
+      medium: "medium-length hair",
+      long: "long hair",
+      curly: "curly hair"
+    };
+
+    const hairColorDescriptions = {
+      black: "black hair",
+      brown: "brown hair",
+      blonde: "blonde hair",
+      red: "red hair",
+      colorful: "vibrant multicolored hair"
+    };
+
+    const accessoriesText = custom.accessories.length > 0
+      ? `, wearing ${custom.accessories.map(a => {
+          if (a === 'glasses') return 'glasses';
+          if (a === 'hat') return 'a cap';
+          if (a === 'headphones') return 'headphones';
+          if (a === 'bow') return 'a hair bow';
+          return a;
+        }).join(' and ')}`
+      : '';
+
+    return `3D cartoon avatar in the style of Apple Memoji: ${skinToneDescriptions[custom.skinTone]}, ${hairStyleDescriptions[custom.hairStyle]}, ${hairColorDescriptions[custom.hairColor]}, ${personalityDescriptions[custom.baseAvatar]}${accessoriesText}. Ultra high resolution, clean background, professional digital art, vibrant colors, soft lighting, friendly and approachable style.`;
   };
 
   const toggleAccessory = (accessory: string) => {

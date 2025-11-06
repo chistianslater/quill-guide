@@ -8,9 +8,10 @@ interface BuddyAvatarProps {
   personality: "encouraging" | "funny" | "professional" | "friendly";
   size?: "sm" | "md" | "lg";
   animate?: boolean;
+  customAvatarUrl?: string;
 }
 
-export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyAvatarProps) => {
+export const BuddyAvatar = ({ personality, size = "md", animate = true, customAvatarUrl }: BuddyAvatarProps) => {
   const sizeClasses = {
     sm: "w-10 h-10",
     md: "w-16 h-16",
@@ -66,6 +67,7 @@ export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyA
   };
 
   const config = personalities[personality];
+  const avatarSrc = customAvatarUrl || config.avatar;
 
   return (
     <motion.div
@@ -74,7 +76,7 @@ export const BuddyAvatar = ({ personality, size = "md", animate = true }: BuddyA
       transition={config.transition}
     >
       <img 
-        src={config.avatar} 
+        src={avatarSrc} 
         alt={`${personality} buddy avatar`}
         className="w-full h-full object-cover"
       />
