@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getQuestionsForSubject, AssessmentQuestion } from "@/data/assessmentQuestions";
-import { Send, Sparkles } from "lucide-react";
+import { Send } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BuddyAvatar } from "./BuddyAvatar";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SubjectAssessmentProps {
   userId: string;
@@ -35,37 +37,54 @@ export const SubjectAssessment = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
+  const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const qs = getQuestionsForSubject(subject, gradeLevel).slice(0, 3);
-    if (qs.length === 0) {
-      toast({
-        title: "Keine Fragen verfügbar",
-        description: `Für ${subject} sind aktuell keine Fragen verfügbar.`,
-        variant: "destructive"
-      });
-      onSkip();
-      return;
-    }
-    setQuestions(qs);
-    
-    // Initial buddy message
-    const welcomeMessages: ChatMessage[] = [
-      { 
-        role: "buddy", 
-        content: `Hey! 🌟 Lass uns zusammen ${subject} erkunden! Ich stelle dir ein paar Fragen, damit ich besser verstehe, wo du gerade stehst. Kein Stress - das ist kein Test, sondern einfach nur ein Gespräch zwischen uns! 😊` 
-      },
-      { 
-        role: "buddy", 
-        content: qs[0].question,
-        questionId: qs[0].id
+    const loadPersonalityAndQuestions = async () => {
+      // Load buddy personality
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("buddy_personality")
+        .eq("id", userId)
+        .single();
+      
+      if (profileData?.buddy_personality) {
+        setBuddyPersonality(profileData.buddy_personality as any);
       }
-    ];
-    setMessages(welcomeMessages);
-    setWaitingForAnswer(true);
-  }, [subject, gradeLevel]);
+
+      // Load questions
+      const qs = getQuestionsForSubject(subject, gradeLevel).slice(0, 3);
+      if (qs.length === 0) {
+        toast({
+          title: "Keine Fragen verfügbar",
+          description: `Für ${subject} sind aktuell keine Fragen verfügbar.`,
+          variant: "destructive"
+        });
+        onSkip();
+        return;
+      }
+      setQuestions(qs);
+      
+      // Initial buddy message
+      const welcomeMessages: ChatMessage[] = [
+        { 
+          role: "buddy", 
+          content: `Hey! 🌟 Lass uns zusammen ${subject} erkunden! Ich stelle dir ein paar Fragen, damit ich besser verstehe, wo du gerade stehst. Kein Stress - das ist kein Test, sondern einfach nur ein Gespräch zwischen uns! 😊` 
+        },
+        { 
+          role: "buddy", 
+          content: qs[0].question,
+          questionId: qs[0].id
+        }
+      ];
+      setMessages(welcomeMessages);
+      setWaitingForAnswer(true);
+    };
+
+    loadPersonalityAndQuestions();
+  }, [subject, gradeLevel, userId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -181,9 +200,7 @@ export const SubjectAssessment = ({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-muted/30">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <BuddyAvatar personality={buddyPersonality} size="sm" />
           <div>
             <h3 className="font-semibold">{subject} Kennenlernen</h3>
             <p className="text-sm text-muted-foreground">
@@ -204,32 +221,59 @@ export const SubjectAssessment = ({
       {/* Chat Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         <div className="space-y-4">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                }`}
+          <AnimatePresence>
+            {messages.map((msg, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              </div>
-            </div>
-          ))}
+                {msg.role === "buddy" && (
+                  <BuddyAvatar personality={buddyPersonality} size="sm" animate={idx === messages.length - 1} />
+                )}
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          
           {loading && (
-            <div className="flex justify-start">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex gap-3 justify-start"
+            >
+              <BuddyAvatar personality={buddyPersonality} size="sm" />
               <div className="bg-muted rounded-2xl px-4 py-3">
                 <div className="flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.4s]" />
+                  <motion.div 
+                    className="w-2 h-2 rounded-full bg-muted-foreground/40"
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity }}
+                  />
+                  <motion.div 
+                    className="w-2 h-2 rounded-full bg-muted-foreground/40"
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                  />
+                  <motion.div 
+                    className="w-2 h-2 rounded-full bg-muted-foreground/40"
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                  />
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </ScrollArea>

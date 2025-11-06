@@ -3,14 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Smile, Briefcase, Heart } from "lucide-react";
+import { BuddyAvatar } from "./BuddyAvatar";
+import { motion } from "framer-motion";
 
 interface BuddyPersonality {
   id: string;
   name: string;
   description: string;
   emoji: string;
-  icon: React.ReactNode;
   example: string;
 }
 
@@ -20,7 +20,6 @@ const personalities: BuddyPersonality[] = [
     name: "Ermutigend",
     description: "Dein Buddy ist unterstützend und motivierend",
     emoji: "💪",
-    icon: <Heart className="w-8 h-8" />,
     example: "Du schaffst das! Jeder kleine Schritt ist ein Fortschritt! 🌟"
   },
   {
@@ -28,7 +27,6 @@ const personalities: BuddyPersonality[] = [
     name: "Lustig",
     description: "Dein Buddy macht Lernen mit Humor zum Spaß",
     emoji: "😄",
-    icon: <Smile className="w-8 h-8" />,
     example: "Mathe? Kein Problem! Wir knacken die Zahlen wie Nüsse! 🥜"
   },
   {
@@ -36,7 +34,6 @@ const personalities: BuddyPersonality[] = [
     name: "Sachlich",
     description: "Dein Buddy ist fokussiert und strukturiert",
     emoji: "📚",
-    icon: <Briefcase className="w-8 h-8" />,
     example: "Lass uns systematisch vorgehen und das Thema Schritt für Schritt erarbeiten."
   },
   {
@@ -44,7 +41,6 @@ const personalities: BuddyPersonality[] = [
     name: "Freundlich",
     description: "Dein Buddy ist wie ein guter Freund",
     emoji: "🤗",
-    icon: <Sparkles className="w-8 h-8" />,
     example: "Hey! Lass uns gemeinsam herausfinden, wie das funktioniert! 😊"
   }
 ];
@@ -111,41 +107,45 @@ export const BuddyPersonalitySelector = ({ userId, onSelect }: BuddyPersonalityS
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {personalities.map((personality) => (
-          <Card
+        {personalities.map((personality, index) => (
+          <motion.div
             key={personality.id}
-            className={`cursor-pointer transition-all hover:shadow-lg ${
-              selectedPersonality === personality.id
-                ? "ring-2 ring-primary shadow-lg"
-                : ""
-            }`}
-            onClick={() => !loading && handleSelect(personality.id)}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
           >
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-lg ${
-                  selectedPersonality === personality.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                }`}>
-                  {personality.icon}
+            <Card
+              className={`cursor-pointer transition-all hover:shadow-lg ${
+                selectedPersonality === personality.id
+                  ? "ring-2 ring-primary shadow-lg"
+                  : ""
+              }`}
+              onClick={() => !loading && handleSelect(personality.id)}
+            >
+              <CardHeader>
+                <div className="flex items-center gap-4">
+                  <BuddyAvatar 
+                    personality={personality.id as any}
+                    size="md"
+                    animate={selectedPersonality === personality.id}
+                  />
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">
+                      {personality.name} {personality.emoji}
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      {personality.description}
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-lg">
-                    {personality.name} {personality.emoji}
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    {personality.description}
-                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm italic">"{personality.example}"</p>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-sm italic">"{personality.example}"</p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
