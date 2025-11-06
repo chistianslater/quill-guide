@@ -30,6 +30,7 @@ export const TaskPackageView = ({ packageId, userId, onBack, onStartTask }: Task
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [profile, setProfile] = useState<any>(null);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -279,7 +280,8 @@ export const TaskPackageView = ({ packageId, userId, onBack, onStartTask }: Task
                     <img
                       src={task.original_image_url}
                       alt="Aufgabe"
-                      className="w-full max-w-md rounded-lg border"
+                      className="w-32 h-32 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setEnlargedImage(task.original_image_url)}
                     />
                   </div>
                   {task.simplified_content ? (
@@ -315,6 +317,23 @@ export const TaskPackageView = ({ packageId, userId, onBack, onStartTask }: Task
           ))}
         </div>
       )}
+
+      <Dialog open={!!enlargedImage} onOpenChange={() => setEnlargedImage(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Aufgabenbild</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center">
+            {enlargedImage && (
+              <img
+                src={enlargedImage}
+                alt="Vergrößerte Aufgabe"
+                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
