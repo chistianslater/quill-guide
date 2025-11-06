@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Volume2 } from "lucide-react";
+import { BuddyAvatar } from "./BuddyAvatar";
 
 interface Message {
   role: "user" | "assistant";
@@ -21,6 +22,7 @@ export const Chat = () => {
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
+  const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -33,16 +35,17 @@ export const Chat = () => {
       const uid = data.user?.id || null;
       setUserId(uid);
 
-      // Fetch TTS setting
+      // Fetch TTS setting and buddy personality
       if (uid) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('tts_enabled')
+          .select('tts_enabled, buddy_personality')
           .eq('id', uid)
           .single();
         
         if (profile) {
           setTtsEnabled(profile.tts_enabled || false);
+          setBuddyPersonality(profile.buddy_personality as any || "encouraging");
         }
       }
     };
@@ -319,8 +322,11 @@ export const Chat = () => {
           return (
             <div
               key={idx}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2 items-start animate-fade-in`}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-3 items-start animate-fade-in`}
             >
+              {msg.role === "assistant" && (
+                <BuddyAvatar personality={buddyPersonality} size="sm" animate={isLastMessage && !isTyping} />
+              )}
               <div
                 className={`max-w-2xl rounded-xl px-5 py-4 ${
                   msg.role === "user"
@@ -352,7 +358,8 @@ export const Chat = () => {
         })}
 
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start gap-3 items-start">
+            <BuddyAvatar personality={buddyPersonality} size="sm" animate={true} />
             <div className="max-w-2xl rounded-xl px-5 py-4 bg-[hsl(var(--buddy-message))]">
               <div className="flex gap-2">
                 <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />

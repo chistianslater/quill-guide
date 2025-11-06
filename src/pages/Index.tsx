@@ -142,6 +142,15 @@ const Index = () => {
   return (
     <div className="relative h-screen">
       <div className="absolute top-4 right-4 z-10 flex gap-2">
+        {/* DEV: Manual Assessment Trigger */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setNeedsComprehensiveAssessment(true)}
+          className="border-orange-500 text-orange-600 hover:bg-orange-50"
+        >
+          🔧 DEV: Assessment starten
+        </Button>
         <Button
           variant="secondary"
           size="sm"
