@@ -313,13 +313,28 @@ export const Chat = () => {
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center max-w-md space-y-2">
-              <h2 className="text-2xl font-medium text-foreground">
-                Hallo! 😊
-              </h2>
-              <p className="text-muted-foreground">
-                Ich bin dein Lernbegleiter. Wir können über alles reden, was dich interessiert.
-              </p>
+            <div className="flex flex-col items-center text-center max-w-md space-y-4">
+              <div className="flex flex-col items-center gap-2">
+                <BuddyAvatar 
+                  personality={buddyPersonality} 
+                  size="lg" 
+                  animate={true}
+                  customAvatarUrl={customAvatarUrl}
+                />
+                {buddyName && (
+                  <span className="text-lg font-medium text-foreground">
+                    {buddyName}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-medium text-foreground">
+                  {buddyName ? `Hey! Ich bin ${buddyName} 👋` : "Hallo! 👋"}
+                </h2>
+                <p className="text-muted-foreground">
+                  Ich bin dein persönlicher Lernbegleiter. Erzähl mir, was dich interessiert, und wir erkunden es gemeinsam!
+                </p>
+              </div>
             </div>
           </div>
         )}
