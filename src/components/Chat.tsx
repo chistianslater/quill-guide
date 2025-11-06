@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Volume2 } from "lucide-react";
 import { BuddyAvatar } from "./BuddyAvatar";
+import { TypeAnimation } from 'react-type-animation';
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp?: number;
-  displayedContent?: string; // For typing effect
+  isComplete?: boolean; // Marks if streaming is done
 }
 
 export const Chat = () => {
@@ -21,14 +22,12 @@ export const Chat = () => {
   const [lastBuddyMessageTime, setLastBuddyMessageTime] = useState<number | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | undefined>(undefined);
   const [buddyName, setBuddyName] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -114,70 +113,14 @@ export const Chat = () => {
     }
   }, [isLoading, messages.length]);
 
-  // Typing effect for assistant messages (character by character)
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    const lastIndex = messages.length - 1;
-    
-    // Only trigger typing effect for new assistant messages that don't have displayedContent yet
-    if (lastMessage && 
-        lastMessage.role === "assistant" && 
-        !isLoading && 
-        !lastMessage.displayedContent &&
-        typingMessageIndex !== lastIndex) {
-      
-      setTypingMessageIndex(lastIndex);
-      
-      let currentCharIndex = 0;
-      const fullContent = lastMessage.content;
-      
-      // Initialize with empty displayedContent
-      setMessages(prev => prev.map((msg, idx) => 
-        idx === lastIndex ? { ...msg, displayedContent: '' } : msg
-      ));
-      
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-      }
-      
-      typingIntervalRef.current = setInterval(() => {
-        currentCharIndex++;
-        
-        setMessages(prev => prev.map((msg, idx) => {
-          if (idx === lastIndex) {
-            return { ...msg, displayedContent: fullContent.slice(0, currentCharIndex) };
-          }
-          return msg;
-        }));
-        
-        if (currentCharIndex >= fullContent.length) {
-          if (typingIntervalRef.current) {
-            clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-          }
-          // Set displayedContent to full content to mark as complete
-          setMessages(prev => prev.map((msg, idx) => 
-            idx === lastIndex ? { ...msg, displayedContent: msg.content } : msg
-          ));
-          setTypingMessageIndex(null);
-        }
-      }, 30); // 30ms per character for smooth typing effect
-    }
-    
-    return () => {
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-      }
-    };
-  }, [messages, isLoading, typingMessageIndex]);
 
   // Auto-play TTS for new assistant messages
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.role === "assistant" && ttsEnabled && !isLoading && typingMessageIndex === null) {
+    if (lastMessage && lastMessage.role === "assistant" && lastMessage.isComplete && ttsEnabled && !isLoading) {
       playTTS(lastMessage.content);
     }
-  }, [messages, ttsEnabled, isLoading, typingMessageIndex]);
+  }, [messages, ttsEnabled, isLoading]);
 
   const playTTS = async (text: string) => {
     if (isSpeaking || !text.trim()) return;
@@ -288,7 +231,7 @@ export const Chat = () => {
             role: "assistant", 
             content: assistantContent,
             timestamp: Date.now(),
-            displayedContent: '' // Hide content until typewriter effect starts
+            isComplete: false
           }];
         });
       };
@@ -337,6 +280,11 @@ export const Chat = () => {
         }
       }
 
+      // Mark message as complete for typewriter effect
+      setMessages((prev) => prev.map((m, i) =>
+        i === prev.length - 1 && m.role === "assistant" ? { ...m, isComplete: true } : m
+      ));
+      
       // Track when buddy message was sent
       setLastBuddyMessageTime(Date.now());
       setIsLoading(false);
@@ -378,8 +326,7 @@ export const Chat = () => {
 
         {messages.map((msg, idx) => {
           const isLastMessage = idx === messages.length - 1;
-          const isTyping = typingMessageIndex === idx;
-          const displayContent = msg.displayedContent || msg.content;
+          const shouldAnimate = msg.role === "assistant" && msg.isComplete && isLastMessage;
           
           return (
             <div
@@ -391,7 +338,7 @@ export const Chat = () => {
                   <BuddyAvatar 
                     personality={buddyPersonality} 
                     size="md" 
-                    animate={isLastMessage && !isTyping}
+                    animate={shouldAnimate}
                     customAvatarUrl={customAvatarUrl}
                   />
                   {buddyName && (
@@ -408,14 +355,21 @@ export const Chat = () => {
                     : "bg-[hsl(var(--buddy-message))] text-foreground"
                 }`}
               >
-                <p className="text-base leading-relaxed whitespace-pre-wrap">
-                  {displayContent}
-                  {isTyping && (
-                    <span className="inline-block w-0.5 h-5 ml-1 bg-foreground animate-pulse" />
-                  )}
-                </p>
+                {msg.role === "assistant" && msg.isComplete ? (
+                  <TypeAnimation
+                    sequence={[msg.content]}
+                    wrapper="p"
+                    speed={75}
+                    className="text-base leading-relaxed whitespace-pre-wrap"
+                    cursor={false}
+                  />
+                ) : (
+                  <p className="text-base leading-relaxed whitespace-pre-wrap">
+                    {msg.content}
+                  </p>
+                )}
               </div>
-              {msg.role === "assistant" && ttsEnabled && !isTyping && (
+              {msg.role === "assistant" && ttsEnabled && msg.isComplete && (
                 <Button
                   variant="ghost"
                   size="icon"
