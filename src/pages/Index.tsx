@@ -193,12 +193,8 @@ const Index = () => {
   };
 
   const handleTaskComplete = async (taskId: string) => {
-    // Mark task as completed
-    await supabase
-      .from("task_items")
-      .update({ is_completed: true })
-      .eq("id", taskId);
-    
+    // Task is already marked as completed in the backend
+    // Just show success message and clear active task
     toast({
       title: "Glückwunsch! 🎉",
       description: "Du hast die Aufgabe erfolgreich abgeschlossen!",

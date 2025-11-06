@@ -276,6 +276,16 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
           if (jsonStr === "[DONE]") break;
           try {
             const parsed = JSON.parse(jsonStr);
+            
+            // Check for task completion event
+            if (parsed.type === "task_complete" && parsed.taskId) {
+              console.log("Task completed:", parsed.taskId);
+              if (onTaskComplete && currentTask) {
+                onTaskComplete(parsed.taskId);
+              }
+              continue;
+            }
+            
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) upsertAssistant(content);
           } catch {

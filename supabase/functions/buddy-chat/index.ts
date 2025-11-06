@@ -594,6 +594,28 @@ Wenn du solche Signale erkennst, passe deinen Ansatz an:
       hasWeakness = true;
       detectedIndicators.push("very_short_response");
     }
+
+    // ========================================================================
+    // TASK COMPLETION DETECTION
+    // ========================================================================
+    let taskCompleted = false;
+    
+    if (activeTask && userMessageCount >= 5) {
+      // Task is considered complete if:
+      // 1. At least 5 user messages (sufficient interaction)
+      // 2. Low struggle count or good engagement
+      const strugglesInSession = detectedIndicators.length;
+      
+      if (strugglesInSession === 0 || engagementLevel === "high" || engagementLevel === "normal") {
+        taskCompleted = true;
+        
+        // Mark task as completed in database
+        await supabase
+          .from("task_items")
+          .update({ is_completed: true })
+          .eq("id", activeTask.id);
+      }
+    }
     
     // If user has engaged sufficiently (3+ messages) and we have a target competency
     if (userMessageCount >= 3 && targetCompetency && existingProgress) {
@@ -635,7 +657,41 @@ Wenn du solche Signale erkennst, passe deinen Ansatz an:
         .eq("id", existingProgress.id);
     }
 
-    // Stream the response back
+    // Stream the response back with task completion signal if needed
+    if (taskCompleted && activeTask) {
+      // Create a transformed stream that includes task completion event
+      const reader = response.body!.getReader();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            // Stream all AI response chunks first
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+            
+            // After AI response is complete, send task completion event
+            const completionEvent = `data: ${JSON.stringify({ 
+              type: "task_complete", 
+              taskId: activeTask.id 
+            })}\n\n`;
+            controller.enqueue(new TextEncoder().encode(completionEvent));
+            controller.close();
+          } catch (error) {
+            controller.error(error);
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+        },
+      });
+    }
+
     return new Response(response.body, {
       headers: {
         ...corsHeaders,
