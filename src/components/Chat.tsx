@@ -114,7 +114,7 @@ export const Chat = () => {
     }
   }, [isLoading, messages.length]);
 
-  // Typing effect for assistant messages
+  // Typing effect for assistant messages (character by character)
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     const lastIndex = messages.length - 1;
@@ -128,8 +128,8 @@ export const Chat = () => {
       
       setTypingMessageIndex(lastIndex);
       
-      const words = lastMessage.content.split(' ');
-      let currentWordIndex = 0;
+      let currentCharIndex = 0;
+      const fullContent = lastMessage.content;
       
       // Initialize with empty displayedContent
       setMessages(prev => prev.map((msg, idx) => 
@@ -141,17 +141,16 @@ export const Chat = () => {
       }
       
       typingIntervalRef.current = setInterval(() => {
-        currentWordIndex++;
+        currentCharIndex++;
         
         setMessages(prev => prev.map((msg, idx) => {
           if (idx === lastIndex) {
-            const displayedWords = words.slice(0, currentWordIndex).join(' ');
-            return { ...msg, displayedContent: displayedWords + (currentWordIndex < words.length ? ' ' : '') };
+            return { ...msg, displayedContent: fullContent.slice(0, currentCharIndex) };
           }
           return msg;
         }));
         
-        if (currentWordIndex >= words.length) {
+        if (currentCharIndex >= fullContent.length) {
           if (typingIntervalRef.current) {
             clearInterval(typingIntervalRef.current);
             typingIntervalRef.current = null;
@@ -162,7 +161,7 @@ export const Chat = () => {
           ));
           setTypingMessageIndex(null);
         }
-      }, 80); // 80ms per word
+      }, 30); // 30ms per character for smooth typing effect
     }
     
     return () => {
