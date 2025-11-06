@@ -40,19 +40,28 @@ serve(async (req) => {
             2. Die konkrete Aufgabenstellung
             3. Ob interaktive Elemente hilfreich wären (Tabellen, Eingabefelder, Auswahlmöglichkeiten)
             
-            Für Aufgaben mit Tabellen (wie Einmaleins):
-            - Erkenne die Zeilen und Spalten
-            - Identifiziere, welche Felder ausgefüllt werden sollen
-            - Berechne die korrekten Lösungen
+            WICHTIG für Tabellen (wie Einmaleins):
+            Das data-Objekt MUSS diese Struktur haben:
+            {
+              "rows": ["1", "2", "3", ...],  // Zeilen-Labels
+              "columns": ["1", "2", "3", ...],  // Spalten-Labels
+              "cells": [  // 2D Array: cells[rowIdx][colIdx]
+                [
+                  {"row": 0, "col": 0, "value": "1", "isInput": false},
+                  {"row": 0, "col": 1, "isInput": true, "correctAnswer": "2"},
+                  ...
+                ],
+                ...
+              ]
+            }
+            - Für Felder, die ausgefüllt werden sollen: isInput=true, correctAnswer mit Lösung
+            - Für vorgegebene Werte: isInput=false, value mit dem Wert
             
             Für Multiple-Choice:
-            - Identifiziere die Frage
-            - Liste alle Antwortoptionen auf
-            - Markiere die richtige(n) Antwort(en)
+            Das data-Objekt: {"question": "...", "options": [{"text": "...", "isCorrect": true/false}, ...]}
             
             Für Lückentexte:
-            - Erkenne den Text mit Lücken
-            - Identifiziere die fehlenden Wörter/Zahlen`
+            Erkenne den Text mit Lücken und die fehlenden Wörter/Zahlen`
           },
           {
             role: 'user',
@@ -93,13 +102,16 @@ serve(async (req) => {
                     properties: {
                       type: {
                         type: 'string',
-                        enum: ['table', 'choices', 'inputs', 'none']
+                        enum: ['table', 'choices', 'inputs', 'none'],
+                        description: 'Der Typ des interaktiven Elements'
                       },
                       data: {
                         type: 'object',
-                        description: 'Die Daten für das interaktive Element'
+                        description: 'Die Daten für das interaktive Element. Für type=table: {rows: string[], columns: string[], cells: array von Zeilen mit {row, col, value?, isInput, correctAnswer?}}. Für type=choices: {question: string, options: [{text, isCorrect}]}',
+                        additionalProperties: true
                       }
-                    }
+                    },
+                    required: ['type', 'data']
                   },
                   hints: {
                     type: 'array',
