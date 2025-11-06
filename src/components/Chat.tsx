@@ -367,7 +367,7 @@ export const Chat = () => {
               {msg.role === "assistant" && (
                 <BuddyAvatar 
                   personality={buddyPersonality} 
-                  size="sm" 
+                  size="md" 
                   animate={isLastMessage && !isTyping}
                   customAvatarUrl={customAvatarUrl}
                 />
@@ -406,7 +406,7 @@ export const Chat = () => {
           <div className="flex justify-start gap-3 items-start">
             <BuddyAvatar 
               personality={buddyPersonality} 
-              size="sm" 
+              size="md" 
               animate={true}
               customAvatarUrl={customAvatarUrl}
             />
