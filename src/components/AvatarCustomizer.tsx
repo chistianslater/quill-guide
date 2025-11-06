@@ -57,10 +57,16 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
     skinTone: "medium",
     hairStyle: "short",
     hairColor: "brown",
-    accessories: [] as string[]
+    accessories: [] as string[],
+    buddyName: ""
   });
   const [loading, setLoading] = useState(false);
   const [generatedAvatarUrl, setGeneratedAvatarUrl] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [chatMessages, setChatMessages] = useState<Array<{ text: string; isBot: boolean }>>([
+    { text: "Hi! Ich helfe dir dabei, deinen persönlichen Lern-Buddy zu gestalten. Lass uns Schritt für Schritt deinen perfekten Avatar erstellen! 🎨", isBot: true },
+    { text: "Fangen wir an: Ist dein Buddy männlich oder weiblich?", isBot: true }
+  ]);
 
   useEffect(() => {
     loadCustomization();
@@ -81,7 +87,8 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
         skinTone: custom.skinTone || "medium",
         hairStyle: custom.hairStyle || "short",
         hairColor: custom.hairColor || "brown",
-        accessories: Array.isArray(custom.accessories) ? custom.accessories : []
+        accessories: Array.isArray(custom.accessories) ? custom.accessories : [],
+        buddyName: custom.buddyName || ""
       });
       // Load previously generated avatar
       if (custom.generatedAvatarUrl) {
@@ -233,180 +240,255 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
     }));
   };
 
+  const handleStepChoice = (choice: string, nextQuestion: string) => {
+    setChatMessages(prev => [
+      ...prev,
+      { text: choice, isBot: false },
+      { text: nextQuestion, isBot: true }
+    ]);
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const handleNameInput = (name: string) => {
+    setCustomization(prev => ({ ...prev, buddyName: name }));
+    setChatMessages(prev => [
+      ...prev,
+      { text: name, isBot: false },
+      { text: `Perfekt! ${name} ist ein toller Name! 🎉 Ich generiere jetzt deinen Avatar...`, isBot: true }
+    ]);
+    setCurrentStep(7);
+    setTimeout(() => handleGenerate(), 1000);
+  };
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 0: // Gender
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            {avatarOptions.gender.map(option => (
+              <Button
+                key={option.value}
+                onClick={() => {
+                  setCustomization(prev => ({ ...prev, gender: option.value as any }));
+                  handleStepChoice(option.label, "Super! Welche Persönlichkeit soll dein Buddy haben?");
+                }}
+                className="h-auto py-3"
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        );
+      case 1: // Personality
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            {avatarOptions.baseAvatar.map(option => (
+              <Button
+                key={option.value}
+                onClick={() => {
+                  setCustomization(prev => ({ ...prev, baseAvatar: option.value as any }));
+                  handleStepChoice(option.label, "Schöne Wahl! Welche Hautfarbe soll dein Buddy haben?");
+                }}
+                className="h-auto py-3"
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        );
+      case 2: // Skin Tone
+        return (
+          <div className="flex gap-3 justify-center">
+            {avatarOptions.skinTone.map(option => (
+              <motion.button
+                key={option.value}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setCustomization(prev => ({ ...prev, skinTone: option.value }));
+                  handleStepChoice(option.label, "Toll! Welche Frisur gefällt dir?");
+                }}
+                className="w-16 h-16 rounded-full border-2 border-border hover:border-primary"
+                style={{ backgroundColor: option.color }}
+                title={option.label}
+              />
+            ))}
+          </div>
+        );
+      case 3: // Hair Style
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            {avatarOptions.hairStyle.map(option => (
+              <Button
+                key={option.value}
+                onClick={() => {
+                  setCustomization(prev => ({ ...prev, hairStyle: option.value }));
+                  handleStepChoice(option.label, "Passt gut! Welche Haarfarbe soll es sein?");
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        );
+      case 4: // Hair Color
+        return (
+          <div className="flex gap-3 justify-center">
+            {avatarOptions.hairColor.map(option => (
+              <motion.button
+                key={option.value}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setCustomization(prev => ({ ...prev, hairColor: option.value }));
+                  handleStepChoice(option.label, "Sieht super aus! Möchtest du Accessoires hinzufügen? (Mehrfachauswahl möglich)");
+                }}
+                className="w-16 h-16 rounded-full border-2 border-border hover:border-primary"
+                style={{ 
+                  background: option.color,
+                  backgroundColor: !option.color.includes('gradient') ? option.color : undefined
+                }}
+                title={option.label}
+              />
+            ))}
+          </div>
+        );
+      case 5: // Accessories
+        return (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              {avatarOptions.accessories.map(option => (
+                <Button
+                  key={option.value}
+                  variant={customization.accessories.includes(option.value) ? "default" : "outline"}
+                  onClick={() => toggleAccessory(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+            <Button 
+              onClick={() => {
+                const accessories = customization.accessories.length > 0 
+                  ? customization.accessories.join(", ") 
+                  : "Keine";
+                handleStepChoice(
+                  `Accessoires: ${accessories}`, 
+                  "Fast fertig! Wie soll dein Buddy heißen?"
+                );
+              }}
+              className="w-full"
+            >
+              Weiter
+            </Button>
+          </div>
+        );
+      case 6: // Name
+        return (
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Name eingeben..."
+              className="w-full px-4 py-3 rounded-lg border bg-background"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  handleNameInput(e.currentTarget.value.trim());
+                }
+              }}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground text-center">
+              Drücke Enter zum Fortfahren
+            </p>
+          </div>
+        );
+      case 7: // Generating
+        return (
+          <div className="text-center py-4">
+            <div className="animate-spin text-4xl mb-2">🎨</div>
+            <p className="text-muted-foreground">Erstelle deinen Avatar...</p>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Passe deinen Buddy an! 🎨</h2>
+      <Card className="max-w-2xl w-full max-h-[90vh] flex flex-col p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Erstelle deinen Buddy 🎨</h2>
           <Button variant="ghost" onClick={onClose}>✕</Button>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Preview */}
-          <div className="flex flex-col items-center gap-4">
-            <Label className="text-lg font-semibold">Avatar-Vorschau</Label>
-            <div className="bg-muted rounded-2xl p-8 flex items-center justify-center min-h-[300px]">
-              {generatedAvatarUrl ? (
-                <motion.img
-                  key={generatedAvatarUrl}
-                  src={generatedAvatarUrl}
-                  alt="Generated Avatar"
-                  className="w-48 h-48 rounded-full object-cover shadow-lg"
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                />
-              ) : (
-                <div className="text-center space-y-4">
-                  <div className="w-48 h-48 rounded-full bg-muted-foreground/10 flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
-                    <span className="text-6xl">❓</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Wähle deine Optionen und klicke<br />"Avatar generieren"
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Customization Options */}
-          <div className="space-y-6">
-            {/* Gender */}
-            <div>
-              <Label className="text-base mb-3 block">Geschlecht</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {avatarOptions.gender.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={customization.gender === option.value ? "default" : "outline"}
-                    onClick={() => setCustomization(prev => ({ ...prev, gender: option.value as any }))}
-                    className="h-auto py-3"
-                  >
-                    {option.label}
-                  </Button>
-                ))}
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-[300px] max-h-[400px] p-4 bg-muted/30 rounded-lg">
+          {chatMessages.map((msg, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}
+            >
+              <div className={`max-w-[80%] px-4 py-2 rounded-2xl ${
+                msg.isBot 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-secondary text-secondary-foreground'
+              }`}>
+                {msg.text}
               </div>
-            </div>
-
-            {/* Base Avatar */}
-            <div>
-              <Label className="text-base mb-3 block">Persönlichkeit</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {avatarOptions.baseAvatar.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={customization.baseAvatar === option.value ? "default" : "outline"}
-                    onClick={() => setCustomization(prev => ({ ...prev, baseAvatar: option.value as any }))}
-                    className="h-auto py-3"
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Skin Tone */}
-            <div>
-              <Label className="text-base mb-3 block">Hautfarbe</Label>
-              <div className="flex gap-2">
-                {avatarOptions.skinTone.map(option => (
-                  <motion.button
-                    key={option.value}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setCustomization(prev => ({ ...prev, skinTone: option.value }))}
-                    className={`w-12 h-12 rounded-full border-2 ${
-                      customization.skinTone === option.value ? "border-primary ring-2 ring-primary/50" : "border-border"
-                    }`}
-                    style={{ backgroundColor: option.color }}
-                    title={option.label}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Hair Style */}
-            <div>
-              <Label className="text-base mb-3 block">Frisur</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {avatarOptions.hairStyle.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={customization.hairStyle === option.value ? "default" : "outline"}
-                    onClick={() => setCustomization(prev => ({ ...prev, hairStyle: option.value }))}
-                    size="sm"
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Hair Color */}
-            <div>
-              <Label className="text-base mb-3 block">Haarfarbe</Label>
-              <div className="flex gap-2">
-                {avatarOptions.hairColor.map(option => (
-                  <motion.button
-                    key={option.value}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setCustomization(prev => ({ ...prev, hairColor: option.value }))}
-                    className={`w-12 h-12 rounded-full border-2 ${
-                      customization.hairColor === option.value ? "border-primary ring-2 ring-primary/50" : "border-border"
-                    }`}
-                    style={{ 
-                      background: option.color,
-                      backgroundColor: !option.color.includes('gradient') ? option.color : undefined
-                    }}
-                    title={option.label}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Accessories */}
-            <div>
-              <Label className="text-base mb-3 block">Accessoires</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {avatarOptions.accessories.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={customization.accessories.includes(option.value) ? "default" : "outline"}
-                    onClick={() => toggleAccessory(option.value)}
-                    size="sm"
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
+            </motion.div>
+          ))}
+          
+          {generatedAvatarUrl && currentStep === 7 && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex justify-center py-4"
+            >
+              <img
+                src={generatedAvatarUrl}
+                alt="Generated Avatar"
+                className="w-48 h-48 rounded-full object-cover shadow-lg"
+              />
+            </motion.div>
+          )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-8 flex gap-3">
-          <Button 
-            onClick={handleGenerate} 
-            disabled={loading} 
-            className="flex-1"
-            variant={generatedAvatarUrl ? "outline" : "default"}
-          >
-            {loading ? "Generiert... 🎨" : generatedAvatarUrl ? "Neu generieren" : "Avatar generieren"}
-          </Button>
-          {generatedAvatarUrl && (
+        {/* Current Step Options */}
+        {currentStep < 7 && (
+          <div className="p-4 bg-background rounded-lg border">
+            {renderCurrentStep()}
+          </div>
+        )}
+
+        {/* Save Button (only show when avatar is generated) */}
+        {generatedAvatarUrl && currentStep === 7 && (
+          <div className="mt-4 flex gap-3">
             <Button 
               onClick={handleSave} 
               disabled={loading} 
               className="flex-1"
             >
-              Speichern
+              {customization.buddyName} übernehmen
             </Button>
-          )}
-          <Button variant="outline" onClick={onClose}>
-            Abbrechen
-          </Button>
-        </div>
+            <Button 
+              onClick={() => {
+                setCurrentStep(0);
+                setGeneratedAvatarUrl(null);
+                setChatMessages([
+                  { text: "Lass uns nochmal von vorne beginnen! 🎨", isBot: true },
+                  { text: "Ist dein Buddy männlich oder weiblich?", isBot: true }
+                ]);
+              }} 
+              variant="outline"
+            >
+              Neu starten
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   );
