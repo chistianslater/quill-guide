@@ -5,14 +5,16 @@ import { Chat } from "@/components/Chat";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { InitialAssessment } from "@/components/InitialAssessment";
 import { ComprehensiveAssessment } from "@/components/ComprehensiveAssessment";
+import { AvatarCustomizer } from "@/components/AvatarCustomizer";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, User } from "lucide-react";
 
 const Index = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showAssessment, setShowAssessment] = useState(false);
+  const [showAvatarCustomizer, setShowAvatarCustomizer] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [needsComprehensiveAssessment, setNeedsComprehensiveAssessment] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -154,6 +156,14 @@ const Index = () => {
         <Button
           variant="secondary"
           size="sm"
+          onClick={() => setShowAvatarCustomizer(true)}
+        >
+          <User className="h-4 w-4 mr-2" />
+          Avatar
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => setShowSettings(true)}
         >
           <Settings className="h-4 w-4 mr-2" />
@@ -164,6 +174,13 @@ const Index = () => {
         </Button>
       </div>
       <Chat />
+      
+      {showAvatarCustomizer && (
+        <AvatarCustomizer
+          userId={session.user.id}
+          onClose={() => setShowAvatarCustomizer(false)}
+        />
+      )}
       
       {profile && (
         <InitialAssessment
