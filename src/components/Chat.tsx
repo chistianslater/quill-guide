@@ -359,10 +359,10 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
         const isLastMessage = idx === messages.length - 1;
         const shouldAnimate = msg.role === "assistant" && msg.isComplete && isLastMessage;
         return <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-3 items-start animate-fade-in`}>
-              {msg.role === "assistant" && !isLoadingProfile && <BuddyAvatar personality={buddyPersonality} size="md" animate={shouldAnimate} customAvatarUrl={customAvatarUrl} />}
+              {msg.role === "assistant" && !isLoadingProfile && msg.isComplete && <BuddyAvatar personality={buddyPersonality} size="md" animate={shouldAnimate} customAvatarUrl={customAvatarUrl} />}
               <div className={`max-w-2xl rounded-xl px-5 py-4 ${msg.role === "user" ? "bg-[hsl(var(--user-message))] text-foreground" : "bg-[hsl(var(--buddy-message))] text-foreground"}`}>
-                {msg.role === "assistant" && msg.isComplete ? <TypeAnimation sequence={[msg.content]} wrapper="p" speed={75} className="text-base leading-relaxed whitespace-pre-wrap" cursor={false} /> : msg.role === "assistant" ? <p className="text-base leading-relaxed whitespace-pre-wrap opacity-0">
-                    {/* Hidden during streaming to prevent flash */}
+                {msg.role === "assistant" && msg.isComplete ? <TypeAnimation sequence={[msg.content]} wrapper="p" speed={75} className="text-base leading-relaxed whitespace-pre-wrap" cursor={false} /> : msg.role === "assistant" ? <p className="text-base leading-relaxed whitespace-pre-wrap">
+                    {msg.content}
                   </p> : <p className="text-base leading-relaxed whitespace-pre-wrap">
                     {msg.content}
                   </p>}
@@ -374,8 +374,8 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
       })}
 
         {/* Show interactive task element after first message if available */}
-        {currentTask?.structured_task && messages.length > 0 && (
-          <div className="animate-fade-in">
+        {currentTask?.structured_task && messages.length > 0 && messages[0]?.isComplete && (
+          <div className="animate-fade-in my-4">
             <InteractiveTask
               taskType={currentTask.structured_task.taskType}
               interactiveElement={currentTask.structured_task.interactiveElement}
