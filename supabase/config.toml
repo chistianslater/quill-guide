@@ -1,1 +1,4 @@
 project_id = "rigfnwggthhoicfvpokc"
+
+[functions.simplify-task]
+verify_jwt = true

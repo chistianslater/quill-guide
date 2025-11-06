@@ -7,7 +7,8 @@ import { InitialAssessment } from "@/components/InitialAssessment";
 import { ComprehensiveAssessment } from "@/components/ComprehensiveAssessment";
 import { AvatarCustomizer } from "@/components/AvatarCustomizer";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings, User, Package } from "lucide-react";
+import { TaskBasket } from "@/components/TaskBasket";
 
 const Index = () => {
   const [session, setSession] = useState<any>(null);
@@ -19,6 +20,7 @@ const Index = () => {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [needsComprehensiveAssessment, setNeedsComprehensiveAssessment] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [showTaskBasket, setShowTaskBasket] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -181,6 +183,26 @@ const Index = () => {
     );
   }
 
+  if (showTaskBasket) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowTaskBasket(false)}
+          >
+            ← Zurück zum Chat
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+        <TaskBasket userId={session.user.id} />
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-screen">
       <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -192,6 +214,14 @@ const Index = () => {
           className="border-orange-500 text-orange-600 hover:bg-orange-50"
         >
           🔧 DEV: Assessment starten
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setShowTaskBasket(true)}
+        >
+          <Package className="h-4 w-4 mr-2" />
+          Lernkorb
         </Button>
         <Button
           variant="secondary"

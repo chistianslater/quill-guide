@@ -303,6 +303,80 @@ export type Database = {
           },
         ]
       }
+      task_items: {
+        Row: {
+          created_at: string
+          id: string
+          is_completed: boolean
+          original_image_url: string
+          package_id: string
+          position: number
+          simplified_content: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          original_image_url: string
+          package_id: string
+          position?: number
+          simplified_content?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          original_image_url?: string
+          package_id?: string
+          position?: number
+          simplified_content?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "task_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_packages: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          subject: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          subject?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          subject?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_interests: {
         Row: {
           created_at: string
