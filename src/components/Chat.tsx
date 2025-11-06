@@ -287,7 +287,8 @@ export const Chat = () => {
           return [...prev, { 
             role: "assistant", 
             content: assistantContent,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            displayedContent: '' // Hide content until typewriter effect starts
           }];
         });
       };
