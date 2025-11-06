@@ -20,18 +20,22 @@ serve(async (req) => {
     console.log('Generating avatar for user:', userId);
     console.log('Prompt:', prompt);
 
-    // Call Lovable AI image generation
-    const imageResponse = await fetch('https://api.lovable.app/v1/image-generation', {
+    // Call Lovable AI Gateway for image generation using Gemini
+    const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt,
-        width: 512,
-        height: 512,
-        model: 'flux.schnell'
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        modalities: ['image', 'text']
       }),
     });
 
@@ -43,10 +47,16 @@ serve(async (req) => {
 
     const imageData = await imageResponse.json();
     console.log('Avatar generated successfully');
+    
+    // Extract the base64 image from the response
+    const imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!imageUrl) {
+      throw new Error('No image URL in response');
+    }
 
     return new Response(
       JSON.stringify({ 
-        imageUrl: imageData.url,
+        imageUrl: imageUrl,
         success: true 
       }),
       { 
