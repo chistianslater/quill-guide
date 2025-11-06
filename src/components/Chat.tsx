@@ -37,6 +37,7 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | undefined>(undefined);
   const [buddyName, setBuddyName] = useState<string>("");
   const [currentTask, setCurrentTask] = useState<ActiveTask | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -71,6 +72,7 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
           }
         }
       }
+      setIsLoadingProfile(false);
     };
     getUser();
   }, []);
@@ -324,12 +326,12 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
       sendMessage();
     }
   };
-  return <div className="flex flex-col h-screen bg-background">
+  return <div className="flex flex-col h-full bg-background">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.length === 0 && <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center text-center max-w-md space-y-4">
-            <BuddyAvatar personality={buddyPersonality} size="lg" animate={true} customAvatarUrl={customAvatarUrl} />
+            {!isLoadingProfile && <BuddyAvatar personality={buddyPersonality} size="lg" animate={true} customAvatarUrl={customAvatarUrl} />}
               <div className="space-y-2">
                 <h2 className="text-2xl font-medium text-foreground">
                   {buddyName ? `Hey! Ich bin ${buddyName} 👋` : "Hallo! 👋"}
@@ -345,7 +347,7 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
         const isLastMessage = idx === messages.length - 1;
         const shouldAnimate = msg.role === "assistant" && msg.isComplete && isLastMessage;
         return <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} gap-3 items-start animate-fade-in`}>
-              {msg.role === "assistant" && <BuddyAvatar personality={buddyPersonality} size="md" animate={shouldAnimate} customAvatarUrl={customAvatarUrl} />}
+              {msg.role === "assistant" && !isLoadingProfile && <BuddyAvatar personality={buddyPersonality} size="md" animate={shouldAnimate} customAvatarUrl={customAvatarUrl} />}
               <div className={`max-w-2xl rounded-xl px-5 py-4 ${msg.role === "user" ? "bg-[hsl(var(--user-message))] text-foreground" : "bg-[hsl(var(--buddy-message))] text-foreground"}`}>
                 {msg.role === "assistant" && msg.isComplete ? <TypeAnimation sequence={[msg.content]} wrapper="p" speed={75} className="text-base leading-relaxed whitespace-pre-wrap" cursor={false} /> : msg.role === "assistant" ? <p className="text-base leading-relaxed whitespace-pre-wrap opacity-0">
                     {/* Hidden during streaming to prevent flash */}
@@ -360,7 +362,7 @@ export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
       })}
 
         {isLoading && <div className="flex justify-start gap-3 items-start">
-            <BuddyAvatar personality={buddyPersonality} size="md" animate={true} customAvatarUrl={customAvatarUrl} />
+            {!isLoadingProfile && <BuddyAvatar personality={buddyPersonality} size="md" animate={true} customAvatarUrl={customAvatarUrl} />}
             <div className="max-w-2xl rounded-xl px-5 py-4 bg-[hsl(var(--buddy-message))]">
               <div className="flex gap-2">
                 <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
