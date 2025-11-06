@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getQuestionsForSubject, AssessmentQuestion } from "@/data/assessmentQuestions";
-import { Progress } from "@/components/ui/progress";
+import { Send, Sparkles } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SubjectAssessmentProps {
   userId: string;
@@ -15,6 +13,12 @@ interface SubjectAssessmentProps {
   gradeLevel: number;
   onComplete: (estimatedLevel: number) => void;
   onSkip: () => void;
+}
+
+interface ChatMessage {
+  role: "buddy" | "user";
+  content: string;
+  questionId?: string;
 }
 
 export const SubjectAssessment = ({ 
@@ -28,6 +32,10 @@ export const SubjectAssessment = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [waitingForAnswer, setWaitingForAnswer] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,31 +50,80 @@ export const SubjectAssessment = ({
       return;
     }
     setQuestions(qs);
+    
+    // Initial buddy message
+    const welcomeMessages: ChatMessage[] = [
+      { 
+        role: "buddy", 
+        content: `Hey! 🌟 Lass uns zusammen ${subject} erkunden! Ich stelle dir ein paar Fragen, damit ich besser verstehe, wo du gerade stehst. Kein Stress - das ist kein Test, sondern einfach nur ein Gespräch zwischen uns! 😊` 
+      },
+      { 
+        role: "buddy", 
+        content: qs[0].question,
+        questionId: qs[0].id
+      }
+    ];
+    setMessages(welcomeMessages);
+    setWaitingForAnswer(true);
   }, [subject, gradeLevel]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   if (questions.length === 0) {
     return <div className="text-center">Lädt Fragen...</div>;
   }
 
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
-  const handleAnswer = (answer: string) => {
-    setAnswers({ ...answers, [currentQuestion.id]: answer });
-  };
+  const handleSendMessage = () => {
+    if (!inputValue.trim() || !waitingForAnswer) return;
 
-  const handleNext = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      finishAssessment();
-    }
-  };
+    const userMessage: ChatMessage = {
+      role: "user",
+      content: inputValue
+    };
 
-  const handleBack = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
+    setMessages(prev => [...prev, userMessage]);
+    setAnswers({ ...answers, [currentQuestion.id]: inputValue });
+    setInputValue("");
+    setWaitingForAnswer(false);
+
+    // Buddy responds with encouragement and next question
+    setTimeout(() => {
+      const encouragements = [
+        "Super! 💪 Danke für deine Antwort!",
+        "Klasse! 🎉 Weiter geht's!",
+        "Toll gemacht! ⭐ Nächste Frage kommt!",
+        "Perfekt! 🚀 Lass uns weitermachen!"
+      ];
+      
+      const encouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
+      
+      setMessages(prev => [...prev, { role: "buddy", content: encouragement }]);
+
+      setTimeout(() => {
+        if (currentQuestionIndex < questions.length - 1) {
+          const nextQuestion = questions[currentQuestionIndex + 1];
+          setMessages(prev => [...prev, { 
+            role: "buddy", 
+            content: nextQuestion.question,
+            questionId: nextQuestion.id
+          }]);
+          setCurrentQuestionIndex(currentQuestionIndex + 1);
+          setWaitingForAnswer(true);
+        } else {
+          setMessages(prev => [...prev, { 
+            role: "buddy", 
+            content: "Das war's schon! 🎊 Du hast alle Fragen beantwortet. Ich werte das jetzt für dich aus!" 
+          }]);
+          setTimeout(() => finishAssessment(), 2000);
+        }
+      }, 800);
+    }, 500);
   };
 
   const finishAssessment = async () => {
@@ -120,95 +177,86 @@ export const SubjectAssessment = ({
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl">{subject}</CardTitle>
-        <CardDescription>
-          Frage {currentQuestionIndex + 1} von {questions.length}
-        </CardDescription>
-        <Progress value={progress} className="mt-2" />
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
-          <p className="text-lg font-medium mb-6">{currentQuestion.question}</p>
-
-          {currentQuestion.type === "multiple_choice" && (
-            <RadioGroup
-              value={answers[currentQuestion.id] || ""}
-              onValueChange={handleAnswer}
-              className="space-y-3"
-            >
-              {currentQuestion.options?.map((option, idx) => (
-                <div key={idx} className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-accent transition-colors">
-                  <RadioGroupItem value={option} id={`option-${idx}`} />
-                  <Label htmlFor={`option-${idx}`} className="cursor-pointer flex-1">
-                    {option}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          )}
-
-          {currentQuestion.type === "open" && (
-            <Textarea
-              value={answers[currentQuestion.id] || ""}
-              onChange={(e) => handleAnswer(e.target.value)}
-              placeholder="Schreibe deine Antwort hier..."
-              rows={5}
-              className="text-base"
-            />
-          )}
-
-          {currentQuestion.type === "true_false" && (
-            <RadioGroup
-              value={answers[currentQuestion.id] || ""}
-              onValueChange={handleAnswer}
-              className="space-y-3"
-            >
-              <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-accent transition-colors">
-                <RadioGroupItem value="true" id="true" />
-                <Label htmlFor="true" className="cursor-pointer flex-1">
-                  Richtig
-                </Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-accent transition-colors">
-                <RadioGroupItem value="false" id="false" />
-                <Label htmlFor="false" className="cursor-pointer flex-1">
-                  Falsch
-                </Label>
-              </div>
-            </RadioGroup>
-          )}
+    <div className="flex flex-col h-[600px] max-w-3xl mx-auto border rounded-lg bg-card">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h3 className="font-semibold">{subject} Kennenlernen</h3>
+            <p className="text-sm text-muted-foreground">
+              Frage {currentQuestionIndex + 1} von {questions.length}
+            </p>
+          </div>
         </div>
-
-        <div className="flex gap-3 pt-4">
-          {currentQuestionIndex > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={loading}
-            >
-              Zurück
-            </Button>
-          )}
-          <Button
-            onClick={handleNext}
-            disabled={!answers[currentQuestion.id] || loading}
-            className="flex-1"
-          >
-            {currentQuestionIndex < questions.length - 1 ? "Weiter" : "Fertig"}
-          </Button>
-        </div>
-
         <Button
           variant="ghost"
+          size="sm"
           onClick={onSkip}
           disabled={loading}
-          className="w-full"
         >
-          Ich habe dieses Fach nicht
+          Fach überspringen
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Chat Messages */}
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div className="space-y-4">
+          {messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted"
+                }`}
+              >
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-2xl px-4 py-3">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" />
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.4s]" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Input Area */}
+      <div className="p-4 border-t bg-background">
+        <div className="flex gap-2">
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+            placeholder="Deine Antwort..."
+            disabled={!waitingForAnswer || loading}
+            className="flex-1"
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || !waitingForAnswer || loading}
+            size="icon"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2 text-center">
+          Antworte einfach so, wie du denkst - es gibt keine falschen Antworten! 💫
+        </p>
+      </div>
+    </div>
   );
 };
