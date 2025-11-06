@@ -120,37 +120,124 @@ serve(async (req) => {
       .single();
 
     // ========================================================================
-    // COMPETENCY SELECTION (Priority & Weakness-Based)
+    // COMPETENCY SELECTION (Priority & Weakness-Based with Subject Assessment)
     // ========================================================================
 
     // Fetch a suitable competency to work on
-    let targetCompetency = null;
-    let existingProgress = null;
+    let targetCompetency: any = null;
+    let existingProgress: any = null;
+    let isPrioritySubject = false;
     
     if (profile?.grade_level) {
-      // Priority-based selection: 
-      // 1. High manual priority with struggles
-      // 2. High struggles (AI-detected weaknesses)
-      // 3. High manual priority
-      // 4. Lowest confidence in progress
-      // 5. New mandatory competency
-      
-      const { data: progressData } = await supabase
-        .from("competency_progress")
-        .select("*, competencies(*)")
+      // First, check for priority subjects from comprehensive assessment
+      const { data: priorityAssessments } = await supabase
+        .from("subject_assessments")
+        .select("subject, estimated_level, is_priority")
         .eq("user_id", userId)
-        .in("status", ["not_started", "in_progress"])
-        .order("priority", { ascending: false })
-        .order("struggles_count", { ascending: false })
-        .order("confidence_level", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .eq("is_priority", true)
+        .order("discrepancy", { ascending: false })
+        .limit(3);
 
-      if (progressData) {
-        existingProgress = progressData;
-        targetCompetency = progressData.competencies;
-      } else {
-        // If no existing progress, find a new mandatory competency
+      // Priority-based selection: 
+      // 1. Existing progress in priority subjects with struggles
+      // 2. High struggles (AI-detected weaknesses) in any subject
+      // 3. New competencies in priority subjects at estimated level
+      // 4. High manual priority
+      // 5. Lowest confidence in progress
+      // 6. New mandatory competency
+      
+      // Try to find existing progress in priority subjects first
+      if (priorityAssessments && priorityAssessments.length > 0) {
+        const prioritySubjects = priorityAssessments.map(a => a.subject);
+        
+        const { data: priorityProgress } = await supabase
+          .from("competency_progress")
+          .select("*, competencies(*)")
+          .eq("user_id", userId)
+          .in("status", ["not_started", "in_progress"])
+          .order("struggles_count", { ascending: false })
+          .order("confidence_level", { ascending: true })
+          .limit(10);
+
+        // Filter for priority subjects
+        const priorityMatches = priorityProgress?.filter(p => 
+          p.competencies && prioritySubjects.includes(p.competencies.subject)
+        );
+
+        if (priorityMatches && priorityMatches.length > 0) {
+          existingProgress = priorityMatches[0];
+          targetCompetency = priorityMatches[0].competencies;
+          isPrioritySubject = true;
+        }
+      }
+
+      // If no existing priority progress, try any existing progress
+      if (!targetCompetency) {
+        const { data: progressData } = await supabase
+          .from("competency_progress")
+          .select("*, competencies(*)")
+          .eq("user_id", userId)
+          .in("status", ["not_started", "in_progress"])
+          .order("priority", { ascending: false })
+          .order("struggles_count", { ascending: false })
+          .order("confidence_level", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (progressData) {
+          existingProgress = progressData;
+          targetCompetency = progressData.competencies;
+          
+          // Check if this is a priority subject
+          if (priorityAssessments && targetCompetency) {
+            isPrioritySubject = priorityAssessments.some(a => a.subject === targetCompetency.subject);
+          }
+        }
+      }
+
+      // If still no competency, create new one from priority subjects
+      if (!targetCompetency && priorityAssessments && priorityAssessments.length > 0) {
+        const prioritySubject = priorityAssessments[0];
+        
+        const competencyQuery = supabase
+          .from("competencies")
+          .select("id, title, description, subject, competency_domain, requirement_level")
+          .eq("subject", prioritySubject.subject)
+          .eq("grade_level", prioritySubject.estimated_level)
+          .eq("is_mandatory", true);
+
+        if (profile.federal_state) {
+          competencyQuery.or(`federal_state.eq.${profile.federal_state},federal_state.is.null`);
+        }
+
+        const { data: competencies } = await competencyQuery.limit(10);
+
+        if (competencies && competencies.length > 0) {
+          const randomIndex = Math.floor(Math.random() * competencies.length);
+          targetCompetency = competencies[randomIndex];
+          isPrioritySubject = true;
+
+          const { data: newProgress } = await supabase
+            .from("competency_progress")
+            .insert({
+              user_id: userId,
+              competency_id: targetCompetency.id,
+              status: "not_started",
+              confidence_level: 0,
+              priority: 10,
+              struggles_count: 0,
+              is_priority: true,
+              estimated_level: prioritySubject.estimated_level
+            })
+            .select()
+            .maybeSingle();
+          
+          existingProgress = newProgress;
+        }
+      }
+
+      // Final fallback: any mandatory competency at grade level
+      if (!targetCompetency) {
         const competencyQuery = supabase
           .from("competencies")
           .select("id, title, description, subject, competency_domain, requirement_level")
@@ -164,11 +251,9 @@ serve(async (req) => {
         const { data: competencies } = await competencyQuery.limit(10);
 
         if (competencies && competencies.length > 0) {
-          // Pick a random competency from the available ones
           const randomIndex = Math.floor(Math.random() * competencies.length);
           targetCompetency = competencies[randomIndex];
 
-          // Create initial progress entry
           const { data: newProgress } = await supabase
             .from("competency_progress")
             .insert({
@@ -226,10 +311,28 @@ ${interests && interests.length > 0
 ${targetCompetency ? `
 DEINE AKTUELLE AUFGABE (UNSICHTBAR FÜR DEN LERNER):
 Du arbeitest an dieser Kompetenz:
-- Fach: ${targetCompetency.subject}
+- Fach: ${targetCompetency.subject}${isPrioritySubject ? ' 🎯 PRIORITÄTSFACH' : ''}
 - Bereich: ${targetCompetency.competency_domain}
 - Kompetenz: ${targetCompetency.title}
 - Beschreibung: ${targetCompetency.description}
+${existingProgress?.estimated_level ? `- Niveau: Klasse ${existingProgress.estimated_level}` : ''}
+
+${isPrioritySubject ? `
+🎯 WICHTIG - PRIORITÄTSFACH:
+Dieses Fach wurde als besonders wichtig für den Lerner identifiziert.
+- Gehe extra behutsam vor und baue viel Ermutigung ein
+- Feiere jeden kleinen Fortschritt besonders
+- Erkläre Konzepte in noch kleineren Schritten
+- Nutze die Interessen des Lerners intensiv als Anker
+` : ''}
+
+${existingProgress && existingProgress.struggles_count > 0 ? `
+⚠️ VORSICHT: Der Lerner hatte bereits ${existingProgress.struggles_count} Schwierigkeiten mit dieser Kompetenz.
+- Wähle einen völlig neuen Zugang oder Erklärungsweg
+- Nutze andere Beispiele aus den Interessen
+- Teile die Aufgabe in noch kleinere Schritte
+- Biete mehr Unterstützung und Hilfestellungen an
+` : ''}
 
 WICHTIG:
 - Erwähne NIEMALS direkt "Kompetenz", "Lehrplan" oder "Lernziel"

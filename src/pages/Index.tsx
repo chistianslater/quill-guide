@@ -38,7 +38,7 @@ const Index = () => {
         setProfile(profileData);
         
         // Check if comprehensive assessment is completed
-        const assessmentCompleted = profileData?.preferences?.assessment_completed || false;
+        const assessmentCompleted = (profileData as any)?.preferences?.assessment_completed || false;
         
         if (!interests || interests.length === 0) {
           setNeedsOnboarding(true);

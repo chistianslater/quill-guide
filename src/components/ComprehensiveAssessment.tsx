@@ -84,8 +84,9 @@ export const ComprehensiveAssessment = ({
       .eq("id", userId)
       .single();
 
+    const currentPrefs = (currentProfile as any)?.preferences || {};
     const updatedPreferences = {
-      ...(currentProfile?.preferences || {}),
+      ...currentPrefs,
       assessment_completed: true,
       priority_subjects: prioritySubjects.map(p => p.subject)
     };
@@ -94,7 +95,7 @@ export const ComprehensiveAssessment = ({
       .from("profiles")
       .update({
         preferences: updatedPreferences
-      })
+      } as any)
       .eq("id", userId);
 
     toast({

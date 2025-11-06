@@ -209,6 +209,7 @@ export type Database = {
           federal_state: string | null
           grade_level: number | null
           id: string
+          preferences: Json | null
           preferred_learning_times: string[] | null
           role: string
           tts_enabled: boolean | null
@@ -220,6 +221,7 @@ export type Database = {
           federal_state?: string | null
           grade_level?: number | null
           id: string
+          preferences?: Json | null
           preferred_learning_times?: string[] | null
           role: string
           tts_enabled?: boolean | null
@@ -231,6 +233,7 @@ export type Database = {
           federal_state?: string | null
           grade_level?: number | null
           id?: string
+          preferences?: Json | null
           preferred_learning_times?: string[] | null
           role?: string
           tts_enabled?: boolean | null
