@@ -98,7 +98,7 @@ export const SubjectAssessment = ({
 
   const currentQuestion = questions[currentQuestionIndex];
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim() || !waitingForAnswer) return;
 
     const userMessage: ChatMessage = {
@@ -107,42 +107,132 @@ export const SubjectAssessment = ({
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setAnswers({ ...answers, [currentQuestion.id]: inputValue });
     setInputValue("");
-    setWaitingForAnswer(false);
+    setLoading(true);
 
-    // Buddy responds with encouragement and next question
-    setTimeout(() => {
-      const encouragements = [
-        "Super! 💪 Danke für deine Antwort!",
-        "Klasse! 🎉 Weiter geht's!",
-        "Toll gemacht! ⭐ Nächste Frage kommt!",
-        "Perfekt! 🚀 Lass uns weitermachen!"
-      ];
+    // Use AI to evaluate if the answer is valid and relevant
+    try {
+      const assessmentContext = `Du bewertest gerade Antworten für ein Assessment im Fach ${subject}.
       
-      const encouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
-      
-      setMessages(prev => [...prev, { role: "buddy", content: encouragement }]);
+Die aktuelle Frage ist: "${currentQuestion.question}"
+${currentQuestion.correctAnswer ? `Die korrekte Antwort wäre: "${currentQuestion.correctAnswer}"` : ''}
 
-      setTimeout(() => {
-        if (currentQuestionIndex < questions.length - 1) {
-          const nextQuestion = questions[currentQuestionIndex + 1];
-          setMessages(prev => [...prev, { 
-            role: "buddy", 
-            content: nextQuestion.question,
-            questionId: nextQuestion.id
-          }]);
-          setCurrentQuestionIndex(currentQuestionIndex + 1);
-          setWaitingForAnswer(true);
-        } else {
-          setMessages(prev => [...prev, { 
-            role: "buddy", 
-            content: "Das war's schon! 🎊 Du hast alle Fragen beantwortet. Ich werte das jetzt für dich aus!" 
-          }]);
-          setTimeout(() => finishAssessment(), 2000);
+Der Schüler hat geantwortet: "${inputValue}"
+
+Deine Aufgabe:
+1. Prüfe, ob die Antwort auf die Frage eingeht
+2. Wenn die Antwort eine Rückfrage ist oder "ich weiß nicht" bedeutet, erkläre freundlich die Frage nochmal
+3. Wenn die Antwort unklar ist, frage nach Klarstellung
+4. Wenn die Antwort auf die Frage eingeht, gib kurzes Feedback (positiv und ermutigend, egal ob richtig oder falsch!)
+
+WICHTIG: 
+- Sei super freundlich und ermutigend
+- Sage dem Schüler NICHT direkt ob richtig oder falsch
+- Wenn er eine echte Antwort gegeben hat (auch wenn falsch), bedanke dich und mache weiter
+- Maximal 2-3 Sätze`;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/buddy-chat`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: assessmentContext },
+              { role: "user", content: inputValue }
+            ],
+            userId,
+          }),
         }
-      }, 800);
-    }, 500);
+      );
+
+      if (!response.ok || !response.body) {
+        throw new Error("Konnte keine Antwort erhalten");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let buddyResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+          let line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              buddyResponse += content;
+            }
+          } catch {
+            buffer = line + "\n" + buffer;
+            break;
+          }
+        }
+      }
+
+      setMessages(prev => [...prev, { role: "buddy", content: buddyResponse }]);
+
+      // Check if this was a valid attempt (not just a question or "I don't know")
+      const isValidAttempt = !inputValue.toLowerCase().match(/(was|wie|wer|warum|wo|wann|welche|meinst du|verstehe ich nicht|weiß nicht|keine ahnung)/);
+      
+      if (isValidAttempt) {
+        // Save the answer
+        setAnswers({ ...answers, [currentQuestion.id]: inputValue });
+        
+        // Move to next question after a short delay
+        setTimeout(() => {
+          if (currentQuestionIndex < questions.length - 1) {
+            const nextQuestion = questions[currentQuestionIndex + 1];
+            setMessages(prev => [...prev, { 
+              role: "buddy", 
+              content: nextQuestion.question,
+              questionId: nextQuestion.id
+            }]);
+            setCurrentQuestionIndex(currentQuestionIndex + 1);
+            setWaitingForAnswer(true);
+          } else {
+            setMessages(prev => [...prev, { 
+              role: "buddy", 
+              content: "Das war's schon! 🎊 Du hast alle Fragen beantwortet. Ich werte das jetzt für dich aus!" 
+            }]);
+            setTimeout(() => finishAssessment(), 2000);
+          }
+        }, 1500);
+      } else {
+        // Allow another attempt at the same question
+        setWaitingForAnswer(true);
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Assessment error:", error);
+      toast({
+        title: "Fehler",
+        description: "Konnte Antwort nicht verarbeiten. Bitte versuche es erneut.",
+        variant: "destructive"
+      });
+      setLoading(false);
+      setWaitingForAnswer(true);
+    }
   };
 
   const finishAssessment = async () => {
