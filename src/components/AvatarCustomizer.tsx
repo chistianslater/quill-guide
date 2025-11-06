@@ -52,11 +52,11 @@ const avatarOptions = {
 export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => {
   const { toast } = useToast();
   const [customization, setCustomization] = useState({
-    gender: "male" as "male" | "female",
-    baseAvatar: "encouraging" as "encouraging" | "funny" | "professional" | "friendly",
-    skinTone: "medium",
-    hairStyle: "short",
-    hairColor: "brown",
+    gender: "" as "male" | "female" | "",
+    baseAvatar: "" as "encouraging" | "funny" | "professional" | "friendly" | "",
+    skinTone: "",
+    hairStyle: "",
+    hairColor: "",
     accessories: [] as string[],
     buddyName: ""
   });
