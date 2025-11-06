@@ -12,6 +12,10 @@ interface AvatarCustomizerProps {
 }
 
 const avatarOptions = {
+  gender: [
+    { value: "male", label: "Männlich" },
+    { value: "female", label: "Weiblich" }
+  ],
   baseAvatar: [
     { value: "encouraging", label: "Ermutigend" },
     { value: "funny", label: "Lustig" },
@@ -48,6 +52,7 @@ const avatarOptions = {
 export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => {
   const { toast } = useToast();
   const [customization, setCustomization] = useState({
+    gender: "male" as "male" | "female",
     baseAvatar: "encouraging" as "encouraging" | "funny" | "professional" | "friendly",
     skinTone: "medium",
     hairStyle: "short",
@@ -71,6 +76,7 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
     if (data?.avatar_customization && typeof data.avatar_customization === 'object') {
       const custom = data.avatar_customization as any;
       setCustomization({
+        gender: custom.gender || "male",
         baseAvatar: custom.baseAvatar || "encouraging",
         skinTone: custom.skinTone || "medium",
         hairStyle: custom.hairStyle || "short",
@@ -171,6 +177,11 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
   };
 
   const generateAvatarPrompt = (custom: typeof customization) => {
+    const genderDescriptions = {
+      male: "male character",
+      female: "female character"
+    };
+
     const personalityDescriptions = {
       encouraging: "warm, supportive, uplifting expression with bright eyes",
       funny: "playful, cheerful expression with a big smile",
@@ -202,15 +213,15 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
 
     const accessoriesText = custom.accessories.length > 0
       ? `, wearing ${custom.accessories.map(a => {
-          if (a === 'glasses') return 'glasses';
-          if (a === 'hat') return 'a cap';
-          if (a === 'headphones') return 'headphones';
+          if (a === 'glasses') return 'simple glasses with no branding';
+          if (a === 'hat') return 'a plain cap with no logos or brands';
+          if (a === 'headphones') return 'simple headphones with no branding';
           if (a === 'bow') return 'a hair bow';
           return a;
         }).join(' and ')}`
       : '';
 
-    return `3D cartoon avatar in the style of Apple Memoji: ${skinToneDescriptions[custom.skinTone]}, ${hairStyleDescriptions[custom.hairStyle]}, ${hairColorDescriptions[custom.hairColor]}, ${personalityDescriptions[custom.baseAvatar]}${accessoriesText}. Ultra high resolution, clean background, professional digital art, vibrant colors, soft lighting, friendly and approachable style.`;
+    return `3D cartoon avatar in the style of Apple Memoji: ${genderDescriptions[custom.gender]}, ${skinToneDescriptions[custom.skinTone]}, ${hairStyleDescriptions[custom.hairStyle]}, ${hairColorDescriptions[custom.hairColor]}, ${personalityDescriptions[custom.baseAvatar]}${accessoriesText}. IMPORTANT: No brand logos, no Apple logos, no trademark symbols, completely generic design. Ultra high resolution, clean background, professional digital art, vibrant colors, soft lighting, friendly and approachable style.`;
   };
 
   const toggleAccessory = (accessory: string) => {
@@ -260,6 +271,23 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
 
           {/* Customization Options */}
           <div className="space-y-6">
+            {/* Gender */}
+            <div>
+              <Label className="text-base mb-3 block">Geschlecht</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {avatarOptions.gender.map(option => (
+                  <Button
+                    key={option.value}
+                    variant={customization.gender === option.value ? "default" : "outline"}
+                    onClick={() => setCustomization(prev => ({ ...prev, gender: option.value as any }))}
+                    className="h-auto py-3"
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             {/* Base Avatar */}
             <div>
               <Label className="text-base mb-3 block">Persönlichkeit</Label>
