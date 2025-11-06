@@ -35,7 +35,16 @@ export const CustomAvatarPreview = ({ customization, size = "lg" }: CustomAvatar
       brown: "6f4e37",
       blonde: "f4e7c3",
       red: "a0522d",
-      colorful: "ff0000" // DiceBear doesn't support gradients, fallback to red
+      colorful: "ff6b6b" // Bright red-pink for colorful
+    };
+
+    // Map hair styles to DiceBear hair types (bigSmile collection)
+    type HairType = "bangs" | "bowlCutHair" | "braids" | "bunHair" | "curlyBob" | "curlyShortHair" | "froBun" | "halfShavedHead" | "mohawk" | "shavedHead" | "shortHair" | "straightHair" | "wavyBob";
+    const hairStyleMap: Record<string, HairType[]> = {
+      short: ["shortHair", "bowlCutHair"],
+      medium: ["straightHair", "bangs"],
+      long: ["braids", "bunHair"],
+      curly: ["curlyBob", "curlyShortHair"]
     };
 
     // Map our personality to mouth expressions (valid bigSmile values)
@@ -47,11 +56,19 @@ export const CustomAvatarPreview = ({ customization, size = "lg" }: CustomAvatar
       friendly: ["openedSmile", "gapSmile"]
     };
 
+    // Map accessories to DiceBear eyes types (bigSmile collection)
+    type EyesType = "angry" | "cheery" | "confused" | "normal" | "sad" | "sleepy" | "starstruck" | "winking";
+    const hasGlasses = customization.accessories.includes("glasses");
+    // Note: bigSmile doesn't have explicit glasses support, using eye expressions instead
+    const eyesType: EyesType[] = hasGlasses ? ["starstruck", "cheery"] : ["normal", "cheery"];
+
     const avatar = createAvatar(bigSmile, {
       seed: JSON.stringify(customization),
       skinColor: [skinColorMap[customization.skinTone as keyof typeof skinColorMap]],
       hairColor: [hairColorMap[customization.hairColor as keyof typeof hairColorMap]],
+      hair: hairStyleMap[customization.hairStyle] as HairType[],
       mouth: mouthMap[customization.baseAvatar] as MouthType[],
+      eyes: eyesType,
       backgroundColor: ["transparent"],
     });
 
