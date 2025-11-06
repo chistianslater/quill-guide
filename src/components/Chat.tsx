@@ -363,6 +363,10 @@ export const Chat = () => {
                     className="text-base leading-relaxed whitespace-pre-wrap"
                     cursor={false}
                   />
+                ) : msg.role === "assistant" ? (
+                  <p className="text-base leading-relaxed whitespace-pre-wrap opacity-0">
+                    {/* Hidden during streaming to prevent flash */}
+                  </p>
                 ) : (
                   <p className="text-base leading-relaxed whitespace-pre-wrap">
                     {msg.content}
