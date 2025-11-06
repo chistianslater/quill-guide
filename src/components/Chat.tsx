@@ -12,7 +12,20 @@ interface Message {
   timestamp?: number;
   isComplete?: boolean; // Marks if streaming is done
 }
-export const Chat = () => {
+
+interface ActiveTask {
+  id: string;
+  original_image_url: string;
+  simplified_content: string;
+  package_title?: string;
+}
+
+interface ChatProps {
+  activeTask?: ActiveTask | null;
+  onTaskComplete?: (taskId: string) => void;
+}
+
+export const Chat = ({ activeTask, onTaskComplete }: ChatProps = {}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +36,7 @@ export const Chat = () => {
   const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | undefined>(undefined);
   const [buddyName, setBuddyName] = useState<string>("");
+  const [currentTask, setCurrentTask] = useState<ActiveTask | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -107,6 +121,22 @@ export const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Handle active task changes
+  useEffect(() => {
+    if (activeTask && activeTask !== currentTask) {
+      setCurrentTask(activeTask);
+      // Add initial buddy message about the task
+      const initialMessage: Message = {
+        role: "assistant",
+        content: `Hey! Lass uns gemeinsam diese Aufgabe durchgehen! 🎯 Ich helfe dir Schritt für Schritt dabei. Bist du bereit?`,
+        timestamp: Date.now(),
+        isComplete: true
+      };
+      setMessages([initialMessage]);
+      setLastBuddyMessageTime(Date.now());
+    }
+  }, [activeTask]);
+
   // Auto-focus input when bot finishes responding
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
@@ -186,7 +216,8 @@ export const Chat = () => {
           messages: [...messages, userMessage],
           userId,
           responseTimeMs,
-          messageLength
+          messageLength,
+          activeTask: currentTask
         })
       });
       if (response.status === 429 || response.status === 402) {

@@ -7,8 +7,10 @@ import { InitialAssessment } from "@/components/InitialAssessment";
 import { ComprehensiveAssessment } from "@/components/ComprehensiveAssessment";
 import { AvatarCustomizer } from "@/components/AvatarCustomizer";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { LogOut, Settings, User, Package } from "lucide-react";
 import { TaskBasket } from "@/components/TaskBasket";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [session, setSession] = useState<any>(null);
@@ -21,6 +23,8 @@ const Index = () => {
   const [needsComprehensiveAssessment, setNeedsComprehensiveAssessment] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [showTaskBasket, setShowTaskBasket] = useState(false);
+  const [activeTask, setActiveTask] = useState<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -183,6 +187,26 @@ const Index = () => {
     );
   }
 
+  const handleStartTask = (taskId: string, taskData: any) => {
+    setActiveTask(taskData);
+    setShowTaskBasket(false);
+  };
+
+  const handleTaskComplete = async (taskId: string) => {
+    // Mark task as completed
+    await supabase
+      .from("task_items")
+      .update({ is_completed: true })
+      .eq("id", taskId);
+    
+    toast({
+      title: "Glückwunsch! 🎉",
+      description: "Du hast die Aufgabe erfolgreich abgeschlossen!",
+    });
+    
+    setActiveTask(null);
+  };
+
   if (showTaskBasket) {
     return (
       <div className="min-h-screen bg-background">
@@ -198,13 +222,37 @@ const Index = () => {
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
-        <TaskBasket userId={session.user.id} />
+        <TaskBasket userId={session.user.id} onStartTask={handleStartTask} />
       </div>
     );
   }
 
   return (
     <div className="relative h-screen">
+      {activeTask && (
+        <div className="absolute top-4 left-4 right-4 z-10 mx-auto max-w-md">
+          <Card className="p-4 bg-primary/10 border-primary">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Package className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-sm font-semibold">Aktive Aufgabe</p>
+                  <p className="text-xs text-muted-foreground">
+                    {activeTask.package_title || "Aus Lernkorb"}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTask(null)}
+              >
+                Beenden
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         {/* DEV: Manual Assessment Trigger */}
         <Button
@@ -243,7 +291,7 @@ const Index = () => {
           <LogOut className="h-4 w-4" />
         </Button>
       </div>
-      <Chat />
+      <Chat activeTask={activeTask} onTaskComplete={handleTaskComplete} />
       
       {showAvatarCustomizer && (
         <AvatarCustomizer

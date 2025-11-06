@@ -19,7 +19,12 @@ interface TaskPackage {
   completed_count?: number;
 }
 
-export const TaskBasket = ({ userId }: { userId: string }) => {
+interface TaskBasketProps {
+  userId: string;
+  onStartTask?: (taskId: string, taskData: any) => void;
+}
+
+export const TaskBasket = ({ userId, onStartTask }: TaskBasketProps) => {
   const [packages, setPackages] = useState<TaskPackage[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -120,6 +125,7 @@ export const TaskBasket = ({ userId }: { userId: string }) => {
           setSelectedPackage(null);
           loadPackages();
         }}
+        onStartTask={onStartTask}
       />
     );
   }

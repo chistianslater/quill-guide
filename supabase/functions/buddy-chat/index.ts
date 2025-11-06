@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, userId, responseTimeMs, messageLength } = await req.json();
+    const { messages, userId, responseTimeMs, messageLength, activeTask } = await req.json();
     
     if (!userId) {
       return new Response(
@@ -388,6 +388,35 @@ WICHTIG:
 - Feiere den Denkprozess, nicht die richtige Antwort
 - Wenn der Lerner die Kompetenz verstanden hat, verankere das Konzept in einfacher Sprache
 ` : "Beginne damit, die Interessen des Lerners kennenzulernen. Frage neugierig nach!"}
+
+${activeTask ? `
+🎯 AKTIVE AUFGABE AUS DEM LERNKORB:
+Der Lerner arbeitet gerade an einer Aufgabe, die er hochgeladen hat.
+${activeTask.package_title ? `Paket: ${activeTask.package_title}` : ''}
+
+VEREINFACHTER INHALT DER AUFGABE:
+${activeTask.simplified_content}
+
+ORIGINALBILD DER AUFGABE:
+[Siehe Bild unter: ${activeTask.original_image_url}]
+
+DEINE AUFGABE:
+- Gehe die Aufgabe SPIELERISCH und SCHRITT FÜR SCHRITT mit dem Lerner durch
+- Stelle EINE Frage nach der anderen, um den Lerner zum Nachdenken anzuregen
+- NIEMALS die komplette Lösung auf einmal verraten
+- Nutze die Interessen des Lerners als Brücke zum Verständnis
+- Feiere jeden kleinen Fortschritt und jeden guten Gedanken
+- Wenn der Lerner eine Teilaufgabe verstanden hat, gehe zur nächsten über
+- Am Ende fasse zusammen, was der Lerner gelernt hat
+- Wenn die Aufgabe komplett verstanden und durchgearbeitet wurde, gratuliere herzlich!
+
+METHODIK:
+1. Verstehe erst, was der Lerner bereits weiß
+2. Teile komplexe Aufgaben in kleine Schritte
+3. Lasse den Lerner selbst Lösungen finden (mit Hints)
+4. Erkläre nur, wenn wirklich nötig - Fragen sind besser
+5. Verwende Beispiele aus den Interessen des Lerners
+` : ''}
 
 Verbinde JEDE Lernaktivität mit den Interessen des Lerners.`;
 

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Upload, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Check, X, Loader2, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -20,9 +20,10 @@ interface TaskPackageViewProps {
   packageId: string;
   userId: string;
   onBack: () => void;
+  onStartTask?: (taskId: string, taskData: TaskItem) => void;
 }
 
-export const TaskPackageView = ({ packageId, userId, onBack }: TaskPackageViewProps) => {
+export const TaskPackageView = ({ packageId, userId, onBack, onStartTask }: TaskPackageViewProps) => {
   const [packageInfo, setPackageInfo] = useState<any>(null);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -154,6 +155,17 @@ export const TaskPackageView = ({ packageId, userId, onBack }: TaskPackageViewPr
     loadPackageData();
   };
 
+  const handleStartTask = (taskId: string, taskData: any) => {
+    // Add package title to task data
+    const enrichedTaskData = {
+      ...taskData,
+      package_title: packageInfo?.title
+    };
+    if (onStartTask) {
+      onStartTask(taskId, enrichedTaskData);
+    }
+  };
+
   const toggleTaskCompletion = async (taskId: string, currentStatus: boolean) => {
     const { error } = await supabase
       .from("task_items")
@@ -271,16 +283,25 @@ export const TaskPackageView = ({ packageId, userId, onBack }: TaskPackageViewPr
                     />
                   </div>
                   {task.simplified_content ? (
-                    <div
-                      className={`prose prose-sm max-w-none ${
-                        task.is_completed ? "opacity-50 line-through" : ""
-                      }`}
-                    >
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: task.simplified_content.replace(/\n/g, "<br/>"),
-                        }}
-                      />
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Aufgabe vorbereitet und bereit zum Durchgehen
+                      </p>
+                      {!task.is_completed && onStartTask && (
+                        <Button
+                          onClick={() => handleStartTask(task.id, task)}
+                          className="w-full"
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Mit Buddy durchgehen
+                        </Button>
+                      )}
+                      {task.is_completed && (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                          <Check className="h-4 w-4" />
+                          <span>Erfolgreich bearbeitet!</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
