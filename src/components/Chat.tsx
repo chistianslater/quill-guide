@@ -66,25 +66,36 @@ export const Chat = () => {
     if (!userId) return;
 
     // Subscribe to profile changes to update avatar in real-time
-    const profileSubscription = supabase.channel('profile-changes').on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'profiles',
-      filter: `id=eq.${userId}`
-    }, payload => {
-      const customization = (payload.new as any)?.avatar_customization;
-      if (customization?.baseAvatar) {
-        setBuddyPersonality(customization.baseAvatar as any);
-      }
-      if (customization?.generatedAvatarUrl) {
-        setCustomAvatarUrl(customization.generatedAvatarUrl);
-      }
-      if (customization?.buddyName) {
-        setBuddyName(customization.buddyName);
-      }
-    }).subscribe();
+    const profileSubscription = supabase
+      .channel(`profile-changes-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Profile update received:', payload);
+          const customization = (payload.new as any)?.avatar_customization;
+          if (customization?.baseAvatar) {
+            setBuddyPersonality(customization.baseAvatar as any);
+          }
+          if (customization?.generatedAvatarUrl) {
+            setCustomAvatarUrl(customization.generatedAvatarUrl);
+          }
+          if (customization?.buddyName) {
+            setBuddyName(customization.buddyName);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
+
     return () => {
-      profileSubscription.unsubscribe();
+      supabase.removeChannel(profileSubscription);
     };
   }, [userId]);
   const scrollToBottom = () => {
