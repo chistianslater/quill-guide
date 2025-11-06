@@ -38,21 +38,28 @@ export const SubjectAssessment = ({
   const [inputValue, setInputValue] = useState("");
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const [buddyPersonality, setBuddyPersonality] = useState<"encouraging" | "funny" | "professional" | "friendly">("encouraging");
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string | undefined>(undefined);
   const [uncertaintyCount, setUncertaintyCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     const loadPersonalityAndQuestions = async () => {
-      // Load buddy personality
+      // Load buddy personality and custom avatar
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("buddy_personality")
+        .select("buddy_personality, avatar_customization")
         .eq("id", userId)
         .single();
       
       if (profileData?.buddy_personality) {
         setBuddyPersonality(profileData.buddy_personality as any);
+      }
+      
+      // Load custom avatar URL
+      const customization = profileData?.avatar_customization as any;
+      if (customization?.generatedAvatarUrl) {
+        setCustomAvatarUrl(customization.generatedAvatarUrl);
       }
 
       // Load questions
@@ -310,7 +317,7 @@ WICHTIG:
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-muted/30">
         <div className="flex items-center gap-3">
-          <BuddyAvatar personality={buddyPersonality} size="sm" />
+          <BuddyAvatar personality={buddyPersonality} size="sm" customAvatarUrl={customAvatarUrl} />
           <div>
             <h3 className="font-semibold">{subject} Kennenlernen</h3>
             <p className="text-sm text-muted-foreground">
@@ -342,7 +349,7 @@ WICHTIG:
                 className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {msg.role === "buddy" && (
-                  <BuddyAvatar personality={buddyPersonality} size="sm" animate={idx === messages.length - 1} />
+                  <BuddyAvatar personality={buddyPersonality} size="sm" animate={idx === messages.length - 1} customAvatarUrl={customAvatarUrl} />
                 )}
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 ${
@@ -363,7 +370,7 @@ WICHTIG:
               animate={{ opacity: 1 }}
               className="flex gap-3 justify-start"
             >
-              <BuddyAvatar personality={buddyPersonality} size="sm" />
+              <BuddyAvatar personality={buddyPersonality} size="sm" customAvatarUrl={customAvatarUrl} />
               <div className="bg-muted rounded-2xl px-4 py-3">
                 <div className="flex gap-1">
                   <motion.div 
