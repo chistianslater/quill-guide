@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { BuddyAvatar } from "./BuddyAvatar";
+import { CustomAvatarPreview } from "./CustomAvatarPreview";
 import { motion } from "framer-motion";
 
 interface AvatarCustomizerProps {
@@ -192,12 +192,11 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
         <div className="grid md:grid-cols-2 gap-8">
           {/* Preview */}
           <div className="flex flex-col items-center gap-4">
-            <Label className="text-lg font-semibold">Vorschau</Label>
+            <Label className="text-lg font-semibold">Live-Vorschau</Label>
             <div className="bg-muted rounded-2xl p-8 flex items-center justify-center">
-              <BuddyAvatar 
-                personality={customization.baseAvatar} 
-                size="lg" 
-                animate={true}
+              <CustomAvatarPreview 
+                customization={customization}
+                size="lg"
               />
             </div>
             <p className="text-sm text-muted-foreground text-center">
