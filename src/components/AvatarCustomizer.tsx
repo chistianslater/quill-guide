@@ -268,6 +268,7 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
             {avatarOptions.gender.map(option => (
               <Button
                 key={option.value}
+                variant={customization.gender === option.value ? "default" : "outline"}
                 onClick={() => {
                   setCustomization(prev => ({ ...prev, gender: option.value as any }));
                   handleStepChoice(option.label, "Super! Welche Persönlichkeit soll dein Buddy haben?");
@@ -285,6 +286,7 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
             {avatarOptions.baseAvatar.map(option => (
               <Button
                 key={option.value}
+                variant={customization.baseAvatar === option.value ? "default" : "outline"}
                 onClick={() => {
                   setCustomization(prev => ({ ...prev, baseAvatar: option.value as any }));
                   handleStepChoice(option.label, "Schöne Wahl! Welche Hautfarbe soll dein Buddy haben?");
@@ -308,7 +310,11 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
                   setCustomization(prev => ({ ...prev, skinTone: option.value }));
                   handleStepChoice(option.label, "Toll! Welche Frisur gefällt dir?");
                 }}
-                className="w-16 h-16 rounded-full border-2 border-border hover:border-primary"
+                className={`w-16 h-16 rounded-full border-4 ${
+                  customization.skinTone === option.value 
+                    ? 'border-primary ring-2 ring-primary ring-offset-2' 
+                    : 'border-border hover:border-primary'
+                }`}
                 style={{ backgroundColor: option.color }}
                 title={option.label}
               />
@@ -321,6 +327,7 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
             {avatarOptions.hairStyle.map(option => (
               <Button
                 key={option.value}
+                variant={customization.hairStyle === option.value ? "default" : "outline"}
                 onClick={() => {
                   setCustomization(prev => ({ ...prev, hairStyle: option.value }));
                   handleStepChoice(option.label, "Passt gut! Welche Haarfarbe soll es sein?");
@@ -343,7 +350,11 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
                   setCustomization(prev => ({ ...prev, hairColor: option.value }));
                   handleStepChoice(option.label, "Sieht super aus! Möchtest du Accessoires hinzufügen? (Mehrfachauswahl möglich)");
                 }}
-                className="w-16 h-16 rounded-full border-2 border-border hover:border-primary"
+                className={`w-16 h-16 rounded-full border-4 ${
+                  customization.hairColor === option.value 
+                    ? 'border-primary ring-2 ring-primary ring-offset-2' 
+                    : 'border-border hover:border-primary'
+                }`}
                 style={{ 
                   background: option.color,
                   backgroundColor: !option.color.includes('gradient') ? option.color : undefined
