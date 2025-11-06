@@ -58,6 +58,11 @@ export const Chat = () => {
       }
     };
     getUser();
+  }, []);
+
+  // Separate useEffect for realtime subscription that depends on userId
+  useEffect(() => {
+    if (!userId) return;
 
     // Subscribe to profile changes to update avatar in real-time
     const profileSubscription = supabase
