@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { CustomAvatarPreview } from "./CustomAvatarPreview";
 import { motion } from "framer-motion";
 
 interface AvatarCustomizerProps {
@@ -56,6 +55,7 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
     accessories: [] as string[]
   });
   const [loading, setLoading] = useState(false);
+  const [generatedAvatarUrl, setGeneratedAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadCustomization();
@@ -77,15 +77,24 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
         hairColor: custom.hairColor || "brown",
         accessories: Array.isArray(custom.accessories) ? custom.accessories : []
       });
+      // Load previously generated avatar
+      if (custom.generatedAvatarUrl) {
+        setGeneratedAvatarUrl(custom.generatedAvatarUrl);
+      }
     }
   };
 
-  const handleSave = async () => {
+  const handleGenerate = async () => {
     setLoading(true);
     
     try {
       // Generate custom avatar based on all customization options
       const avatarPrompt = generateAvatarPrompt(customization);
+      
+      toast({
+        title: "Generiere Avatar... 🎨",
+        description: "Dies kann einen Moment dauern"
+      });
       
       // Generate the avatar image using Supabase edge function
       const { data, error: fnError } = await supabase.functions.invoke('generate-avatar', {
@@ -98,13 +107,45 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
       if (fnError) throw fnError;
       if (!data.success) throw new Error(data.error || 'Avatar generation failed');
       
+      // Display generated avatar
+      setGeneratedAvatarUrl(data.imageUrl);
+      
+      toast({
+        title: "Avatar generiert! ✨",
+        description: "Gefällt er dir? Klicke Speichern um ihn zu übernehmen."
+      });
+    } catch (error) {
+      console.error('Generation error:', error);
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Konnte Avatar nicht generieren",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!generatedAvatarUrl) {
+      toast({
+        title: "Kein Avatar generiert",
+        description: "Bitte generiere zuerst einen Avatar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
       // Save customization and generated avatar URL
       const { error } = await supabase
         .from("profiles")
         .update({ 
           avatar_customization: {
             ...customization,
-            generatedAvatarUrl: data.imageUrl
+            generatedAvatarUrl
           },
           buddy_personality: customization.baseAvatar
         })
@@ -192,16 +233,29 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
         <div className="grid md:grid-cols-2 gap-8">
           {/* Preview */}
           <div className="flex flex-col items-center gap-4">
-            <Label className="text-lg font-semibold">Live-Vorschau</Label>
-            <div className="bg-muted rounded-2xl p-8 flex items-center justify-center">
-              <CustomAvatarPreview 
-                customization={customization}
-                size="lg"
-              />
+            <Label className="text-lg font-semibold">Avatar-Vorschau</Label>
+            <div className="bg-muted rounded-2xl p-8 flex items-center justify-center min-h-[300px]">
+              {generatedAvatarUrl ? (
+                <motion.img
+                  key={generatedAvatarUrl}
+                  src={generatedAvatarUrl}
+                  alt="Generated Avatar"
+                  className="w-48 h-48 rounded-full object-cover shadow-lg"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                />
+              ) : (
+                <div className="text-center space-y-4">
+                  <div className="w-48 h-48 rounded-full bg-muted-foreground/10 flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                    <span className="text-6xl">❓</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Wähle deine Optionen und klicke<br />"Avatar generieren"
+                  </p>
+                </div>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              So sieht dein Buddy aus!
-            </p>
           </div>
 
           {/* Customization Options */}
@@ -302,11 +356,25 @@ export const AvatarCustomizer = ({ userId, onClose }: AvatarCustomizerProps) => 
           </div>
         </div>
 
-        {/* Save Button */}
+        {/* Action Buttons */}
         <div className="mt-8 flex gap-3">
-          <Button onClick={handleSave} disabled={loading} className="flex-1">
-            {loading ? "Speichert..." : "Speichern"}
+          <Button 
+            onClick={handleGenerate} 
+            disabled={loading} 
+            className="flex-1"
+            variant={generatedAvatarUrl ? "outline" : "default"}
+          >
+            {loading ? "Generiert... 🎨" : generatedAvatarUrl ? "Neu generieren" : "Avatar generieren"}
           </Button>
+          {generatedAvatarUrl && (
+            <Button 
+              onClick={handleSave} 
+              disabled={loading} 
+              className="flex-1"
+            >
+              Speichern
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>
             Abbrechen
           </Button>
